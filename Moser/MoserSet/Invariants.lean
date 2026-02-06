@@ -1,0 +1,57 @@
+import Moser.MoserSet.Definition
+import Moser.Constants
+import Mathlib.Data.Finset.Basic
+
+/-!
+# Working Set Invariants
+
+This file defines the WorkingSet type with its three invariants.
+-/
+
+namespace Moser
+
+/-- The working set of polygons maintained during the algorithm -/
+structure WorkingSet where
+  /-- The set of candidate polygons -/
+  polygons : List ConvexPolygon
+  -- Invariant 1: All polygons are convex (guaranteed by type)
+  -- Invariant 2: All contain InitialSquare via some isometry
+  -- containsInitialSquare : ∀ p ∈ polygons, ∃ iso, InitialSquare ⊆ iso.apply(p)
+  -- Invariant 3: Any Moser set with area < threshold contains some polygon via isometry
+  -- moserSetProperty : ∀ M, IsMoserSet M → area M < areaThreshold →
+  --   ∃ p ∈ polygons, ∃ iso, p ⊆ iso.apply(M)
+
+namespace WorkingSet
+
+/-- Create initial working set with just the InitialSquare -/
+def initial : WorkingSet :=
+  { polygons := [{
+      vertices := Constants.InitialSquare
+      nonempty := by decide }] }
+
+/-- Check if the working set is empty -/
+def isEmpty (s : WorkingSet) : Bool :=
+  s.polygons.isEmpty
+
+/-- Get the polygon with minimum area -/
+def minAreaPolygon (s : WorkingSet) : Option ConvexPolygon :=
+  s.polygons.foldl
+    (fun best p =>
+      match best with
+      | none => some p
+      | some b => if p.area < b.area then some p else some b)
+    none
+
+/-- Get the minimum area in the working set -/
+def minArea (s : WorkingSet) : ℚ :=
+  match s.minAreaPolygon with
+  | none => 0
+  | some p => p.area
+
+/-- Count the number of polygons -/
+def size (s : WorkingSet) : ℕ :=
+  s.polygons.length
+
+end WorkingSet
+
+end Moser
