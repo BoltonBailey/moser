@@ -1,4 +1,6 @@
+import Mathlib
 import Moser.Geometry.Polygon
+import Moser.Constants
 
 /-!
 # Polygon Area Computation
@@ -8,9 +10,11 @@ This file implements the shoelace formula for computing the area of a polygon.
 
 namespace Moser
 
+open Rat
+
 /-- Compute the signed area of a polygon using the shoelace formula -/
 def shoelaceArea (vertices : List Point) : ℚ :=
-  if h : vertices.length < 3 then 0
+  if vertices.length < 3 then 0
   else
     let cyclic := vertices ++ [vertices.head!]
     let pairs := List.zip cyclic cyclic.tail

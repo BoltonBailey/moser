@@ -1,6 +1,6 @@
+import Mathlib
 import Moser.MoserSet.Definition
 import Moser.Constants
-import Mathlib.Data.Finset.Basic
 
 /-!
 # Working Set Invariants
@@ -9,6 +9,8 @@ This file defines the WorkingSet type with its three invariants.
 -/
 
 namespace Moser
+
+open Rat
 
 /-- The working set of polygons maintained during the algorithm -/
 structure WorkingSet where
@@ -25,9 +27,7 @@ namespace WorkingSet
 
 /-- Create initial working set with just the InitialSquare -/
 def initial : WorkingSet :=
-  { polygons := [{
-      vertices := Constants.InitialSquare
-      nonempty := by decide }] }
+  { polygons := [{ vertices := Constants.InitialSquare }] }
 
 /-- Check if the working set is empty -/
 def isEmpty (s : WorkingSet) : Bool :=

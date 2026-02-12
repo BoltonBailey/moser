@@ -1,3 +1,4 @@
+import Mathlib
 import Moser.Computation.Algorithm
 
 /-!
@@ -29,18 +30,12 @@ instance distanceCheckDecidable (p : Point) (cutoff : ℚ) :
 
 /-- Test: Initial square has correct area -/
 def testInitialSquareArea : Bool :=
-  let square : ConvexPolygon := {
-    vertices := Constants.InitialSquare
-    nonempty := by decide
-  }
+  let square : ConvexPolygon := { vertices := Constants.InitialSquare }
   square.area == 1 / 9
 
 /-- Test: Point at origin is inside initial square -/
 def testPointInSquare : Bool :=
-  let square : ConvexPolygon := {
-    vertices := Constants.InitialSquare
-    nonempty := by decide
-  }
+  let square : ConvexPolygon := { vertices := Constants.InitialSquare }
   pointInConvexPolygon (0, 0) square
 
 /-- Test: bigSetRemoval keeps initial square -/

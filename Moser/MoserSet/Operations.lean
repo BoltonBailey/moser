@@ -1,3 +1,4 @@
+import Mathlib
 import Moser.MoserSet.Invariants
 import Moser.Geometry.Intersection
 import Moser.Isometry.Discretization
@@ -14,6 +15,8 @@ This file implements the four key operations on the working set:
 -/
 
 namespace Moser
+
+open Rat
 
 namespace WorkingSet
 
@@ -34,16 +37,13 @@ def distanceRemoval (s : WorkingSet) : WorkingSet :=
 /-- Operation 4: Add a worm to the working set -/
 def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : WorkingSet :=
   let isometries := discretizeIsometries epsilon
-  let newPolygons := s.polygons.bind fun p =>
+  let newPolygons := s.polygons.flatMap fun p =>
     isometries.filterMap fun iso =>
       let transformedWorm := iso.applyPolygon wormHull
       -- Compute union by taking vertices from both polygons
       -- For simplicity, use convex hull of combined vertices
       let combinedVertices := p.vertices ++ transformedWorm.vertices
-      if h : combinedVertices.length ≥ 3 then
-        some { vertices := combinedVertices, nonempty := h }
-      else
-        none
+      some { vertices := combinedVertices }
   { polygons := newPolygons }
 
 /-- Apply all cleanup operations: hull, bigSet, distance removal -/

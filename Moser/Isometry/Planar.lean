@@ -1,5 +1,5 @@
+import Mathlib
 import Moser.Geometry.Polygon
-import Mathlib.Data.Complex.Basic
 
 /-!
 # Planar Isometries
@@ -9,6 +9,8 @@ This file defines planar isometries (rotations + translations) with rational app
 
 namespace Moser
 
+open Rat
+
 /-- A planar isometry represented by rotation angle (via sin/cos) and translation -/
 structure PlanarIsometry where
   /-- Cosine of rotation angle (rational approximation) -/
@@ -17,12 +19,13 @@ structure PlanarIsometry where
   sin : ℚ
   /-- Translation vector -/
   translation : Point
-  -- TODO: Add constraint that cos² + sin² ≈ 1
+  /-- sin cos -/
+  isValid : cos * cos + sin * sin = 1
 
 namespace PlanarIsometry
 
 /-- The identity isometry -/
-def id : PlanarIsometry := ⟨1, 0, (0, 0)⟩
+def id : PlanarIsometry := ⟨1, 0, (0, 0), by grind⟩
 
 /-- Apply the isometry to a point -/
 def apply (iso : PlanarIsometry) (p : Point) : Point :=
@@ -31,14 +34,17 @@ def apply (iso : PlanarIsometry) (p : Point) : Point :=
 
 /-- Apply the isometry to a polygon -/
 def applyPolygon (iso : PlanarIsometry) (poly : ConvexPolygon) : ConvexPolygon :=
-  { vertices := poly.vertices.map (iso.apply ·)
-    nonempty := by simp [List.length_map]; exact poly.nonempty }
+  { vertices := poly.vertices.map (iso.apply ·) }
 
 /-- Compose two isometries -/
 def compose (iso1 iso2 : PlanarIsometry) : PlanarIsometry :=
   { cos := iso1.cos * iso2.cos - iso1.sin * iso2.sin
     sin := iso1.sin * iso2.cos + iso1.cos * iso2.sin
-    translation := iso1.apply iso2.translation }
+    translation := iso1.apply iso2.translation
+    isValid := by
+      have h1 : iso1.cos * iso1.cos + iso1.sin * iso1.sin = 1 := iso1.isValid
+      have h2 : iso2.cos * iso2.cos + iso2.sin * iso2.sin = 1 := iso2.isValid
+      grind }
 
 end PlanarIsometry
 

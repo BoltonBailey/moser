@@ -1,3 +1,4 @@
+import Mathlib
 import Moser.Worm.Basic
 import Moser.Isometry.Discretization
 
@@ -9,49 +10,69 @@ This file enumerates candidate worms by their convex hulls (equiangular polygons
 
 namespace Moser
 
-/-- Generate all partitions of a rational into k positive parts -/
-def partitionRational (total : ℚ) (k : ℕ) (granularity : ℚ) : List (List ℚ) :=
-  -- For simplicity, use equal partitions for now
-  -- TODO: Implement proper enumeration of all partitions
-  [[total / k] * k]
+open Rat
 
-/-- Construct an equiangular k-gon with given edge lengths -/
-def constructEquiangularPolygon (edgeLengths : List ℚ) : Option ConvexPolygon :=
-  if h : edgeLengths.length < 3 then none
+/--
+Given a ConvexPolygon,
+enumerate all possible worms that could have this polygon as their convex hull.
+That is, all permutations of the vertices.
+Returns empty list if polygon has fewer than 2 vertices.
+-/
+def enumerateWormsFromPolygon (poly : ConvexPolygon) : List Worm :=
+  let verts := poly.vertices
+  if h : verts.length ≥ 2 then
+    let perms := verts.permutations
+    perms.pmap
+      (fun vts (hmem : vts ∈ perms) =>
+        { vertices := vts,
+          nonempty := by
+            have := (List.mem_permutations.mp hmem).length_eq
+            omega })
+      (fun _ hx => hx)
+  else []
+
+/--
+Given a ConvexPolygon and a approximation factor
+returns optionally a rescaled ConvexPolygon such that at least one worm
+with that convex hull has unit length.
+
+find the length of its worms approximately.
+And then rescale the polygon for at least one worm to have unit length.
+-/
+def ConvexPolygon.rescaleToUnitWorm (poly : ConvexPolygon) (epsilon : ℚ) : Option ConvexPolygon :=
+  let worms := enumerateWormsFromPolygon poly
+  -- Upper bound on lengths of worms
+  let wormLengths := worms.map (fun w => w.lengthApprox epsilon + epsilon)
+  let smallestLength := wormLengths.foldl min (wormLengths.head!)
+  if smallestLength ≤ 0 then none
   else
-    let k := edgeLengths.length
-    let angle := 2 * piApprox / k  -- Angle between consecutive edges
+    let scaleFactor := 1 / smallestLength
+    let scaledPoly :=
+      { vertices := poly.vertices.map (fun p => (p.1 * scaleFactor, p.2 * scaleFactor)) }
+    some scaledPoly
 
-    -- Start at origin, build polygon by adding edges
-    let vertices := edgeLengths.foldl
-      (fun (state : List Point × ℚ) len =>
-        let (verts, currentAngle) := state
-        let lastPoint := verts.getLast!
-        let newPoint := (
-          lastPoint.1 + len * cosApprox currentAngle,
-          lastPoint.2 + len * sinApprox currentAngle
-        )
-        (verts ++ [newPoint], currentAngle + angle))
-      ([(0, 0)], 0)
 
-    if h' : vertices.1.length ≥ 3 then
-      some { vertices := vertices.1, nonempty := by simp at h'; exact h' }
-    else
-      none
+def generateRandomPolygon (seed : ℕ) (numVertices : ℕ) : ConvexPolygon :=
+  let randomPoints : List Point :=
+    List.range numVertices |>.map (fun i =>
+      let x : ℚ := ((seed + i * 373) % 1000 : ℕ) / 1000
+      let y : ℚ := ((seed + i * 737) % 1000 : ℕ) / 1000
+      (x, y))
+  { vertices := randomPoints }
 
-/-- Enumerate equiangular polygons with k vertices and given perimeter -/
-def enumerateEquiangularPolygons (k : ℕ) (perimeter : ℚ) (granularity : ℚ) : List ConvexPolygon :=
-  let partitions := partitionRational perimeter k granularity
-  partitions.filterMap constructEquiangularPolygon
-
-/-- Enumerate candidate worms by enumerating convex hulls -/
-def enumerateWormsByConvexHull (maxVertices : ℕ) (granularity : ℚ) : List ConvexPolygon :=
-  (List.range maxVertices).bind fun k =>
-    if k < 3 then []
-    else enumerateEquiangularPolygons (k + 3) 1 granularity
+/--
+Enumerate a list of at most n polygons.
+-/
+def enumeratePolygons (size : ℕ) : List ConvexPolygon :=
+  -- Generate random polygons using different seeds
+  List.range size |>.map (fun seed => generateRandomPolygon seed (seed % 5 + 3))
 
 /-- Default worm enumeration with reasonable parameters -/
-def defaultWormEnumeration : List ConvexPolygon :=
-  enumerateWormsByConvexHull 6 (1 / 20)
+def defaultWormEnumeration (n : ℕ) : List ConvexPolygon :=
+  let epsilon : ℚ := 1 / (n + 1)
+  let polygons := enumeratePolygons n
+  polygons.filterMap (fun poly => ConvexPolygon.rescaleToUnitWorm poly epsilon)
+
+#eval enumeratePolygons 2
 
 end Moser
