@@ -1,11 +1,13 @@
 import Mathlib
-import Moser.Isometry.Planar
 import Moser.Constants
+import Moser.DirectIsometry.Basic
 
 /-!
 # Isometry Discretization
 
-This file discretizes the space of planar isometries for computational purposes.
+This file discretizes the space of direct planar isometries for computational purposes.
+
+We might assume that the isometries act on worms containing the origin.
 -/
 
 namespace Moser
@@ -40,29 +42,34 @@ def rationalGrid (min max step : ℚ) : List ℚ :=
 /-- Helper: generate angle pairs without deduplication -/
 def angleGridAux (n : ℕ) : List (ℚ × ℚ) :=
   let indices := List.range (n + 1)
+  let j := n
   indices.flatMap fun i =>
-    indices.flatMap fun j =>
-      let a : ℚ := i
-      let b : ℚ := j
-      let a2 := a * a
-      let b2 := b * b
-      let norm := a2 + b2
-      if norm == 0 then
-        []
-      else
-        let c := (a2 - b2) / norm
-        let s := (2 * a * b) / norm
-        [(c, s), (-c, s), (c, -s), (-c, -s)]
+    let a : ℚ := i
+    let b : ℚ := j
+    let a2 := a * a
+    let b2 := b * b
+    let norm := a2 + b2
+    if norm == 0 then
+      []
+    else
+      let c := (a2 - b2) / norm
+      let s := (2 * a * b) / norm
+      [(c, s), (-c, s), (c, -s), (-c, -s)]
 
 /--
-Generate rational points on the unit circle using the complex squaring trick.
+Generate rational points on the unit circle,
+so that the maximum difference in angle between adjacent points is no more than `max_angle_change`.
+
+Note: Implementation using the complex squaring trick.
 For (a, b) we compute (a + bi)² = (a² - b²) + 2abi, then normalize to get:
 - cos = (a² - b²) / (a² + b²)
 - sin = 2ab / (a² + b²)
 This gives exact rational (cos, sin) pairs satisfying cos² + sin² = 1.
+
+TODO: Optimize by removing points that are too close together to be unnecessary per the spec.
 -/
-def angleGrid (step : ℚ) : List (ℚ × ℚ) :=
-  (angleGridAux (max 1 (Int.toNat (2 / step).floor))).dedup
+def angleGrid (max_angle_change : ℚ) : List (ℚ × ℚ) :=
+  (angleGridAux (max 1 (Int.toNat (4 / max_angle_change).ceil))).dedup
 
 /-- The core algebraic identity: for any a, b with a² + b² ≠ 0, the normalized
 squared complex number lies on the unit circle. -/
@@ -79,16 +86,7 @@ theorem unit_circle_from_complex_square (a b : ℚ) (h : a * a + b * b ≠ 0) :
 theorem angleGridAux_spec (n : ℕ) (p : ℚ × ℚ) (hp : p ∈ angleGridAux n) :
     p.1 * p.1 + p.2 * p.2 = 1 := by
   simp only [angleGridAux, List.mem_flatMap] at hp
-  obtain ⟨i, _, j, _, helem⟩ := hp
-  split_ifs at helem with hnorm
-  · simp at helem
-  · have hnz : i * i + j * j ≠ 0 := by
-      simp only [beq_iff_eq] at hnorm
-      exact hnorm
-    have hbase := unit_circle_from_complex_square i j hnz
-    simp only [List.mem_cons, List.not_mem_nil, or_false] at helem
-    rcases helem with rfl | rfl | rfl | rfl <;>
-      simp only [neg_mul_neg, hbase]
+  grind
 
 /-- All elements of angleGrid satisfy the unit circle equation. -/
 theorem angleGrid_spec (step : ℚ) (p : ℚ × ℚ) (hp : p ∈ angleGrid step) :
@@ -96,28 +94,44 @@ theorem angleGrid_spec (step : ℚ) (p : ℚ × ℚ) (hp : p ∈ angleGrid step)
   simp only [angleGrid] at hp
   exact angleGridAux_spec _ p (List.dedup_subset _ hp)
 
+-- /--
+-- Angle grid covers the unit circle with maximum angle change no more than `max_angle_change`.
+-- -/
+-- theorem angleGrid_spec_coverage (max_angle_change : ℚ)
+
 #eval angleGrid (1 / 2)
 #eval (angleGrid (1 / 10)).length
+#eval (angleGrid (1 / 30)).length
 
-/-- Discretize the space of planar isometries with given granularity -/
-def discretizeIsometries (epsilon : ℚ) : List PlanarIsometry :=
+
+/--
+Discretize the space of planar isometries with given granularity
+TODO fold into the worm manipulations and optimize more finely.
+-/
+def discretizeIsometries (epsilon : ℚ) : List DirectIsometry :=
   let angleStep := epsilon / 3
   let transStep := epsilon / 3
-  let angles := angleGrid angleStep
-  let translations := rationalGrid (-distanceCutoff) distanceCutoff transStep
+  -- Adjust angle step based on distance cutoff to ensure coverage
+  -- even for faraway point for which rotation matters more
+  let angles := angleGrid (angleStep / distanceCutoff)
+  let gridCoordinates := rationalGrid (-distanceCutoff) distanceCutoff transStep
+  let translations := (gridCoordinates.flatMap fun x =>
+    gridCoordinates.map fun y => ![x, y]).filter (LocationRange.contains)
   angles.attach.flatMap fun ⟨angle, h⟩ =>
-    translations.flatMap fun tx =>
-      translations.map fun ty =>
+    translations.map fun t =>
         { cos := angle.1
           sin := angle.2
-          translation := (tx, ty)
-          isValid := angleGrid_spec angleStep angle h
+          translation := t
+          isValid := by
+            apply angleGrid_spec _ (angle.1, angle.2) h
           }
 
 /-- Discretize with a default epsilon -/
-def defaultDiscretization : List PlanarIsometry :=
+def defaultDiscretization : List DirectIsometry :=
   discretizeIsometries (1 / 10)
 
-#eval (defaultDiscretization).length -- about 32 million
+#print sorries defaultDiscretization
+
+#eval (defaultDiscretization).length -- about 4.4 million
 
 end Moser

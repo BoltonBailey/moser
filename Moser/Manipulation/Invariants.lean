@@ -1,6 +1,7 @@
 import Mathlib
-import Moser.MoserSet.Definition
 import Moser.Constants
+import Moser.Geometry.PolygonArea
+
 
 /-!
 # Working Set Invariants
@@ -17,17 +18,18 @@ structure WorkingSet where
   /-- The set of candidate polygons -/
   polygons : List ConvexPolygon
   -- Invariant 1: All polygons are convex (guaranteed by type)
-  -- Invariant 2: All contain InitialSquare via some isometry
-  -- containsInitialSquare : ∀ p ∈ polygons, ∃ iso, InitialSquare ⊆ iso.apply(p)
+  -- Invariant 2: All contain InitialWorm via some isometry
+  -- containsInitialWorm : ∀ p ∈ polygons, ∃ iso, InitialWorm ⊆ iso.apply(p)
   -- Invariant 3: Any Moser set with area < threshold contains some polygon via isometry
   -- moserSetProperty : ∀ M, IsMoserSet M → area M < areaThreshold →
   --   ∃ p ∈ polygons, ∃ iso, p ⊆ iso.apply(M)
 
 namespace WorkingSet
 
-/-- Create initial working set with just the InitialSquare -/
+
+/-- Create initial working set with just the InitialWorm -/
 def initial : WorkingSet :=
-  { polygons := [{ vertices := Constants.InitialSquare }] }
+  { polygons := [ConvexPolygon.InitialWorm] }
 
 /-- Check if the working set is empty -/
 def isEmpty (s : WorkingSet) : Bool :=

@@ -1,8 +1,7 @@
 import Mathlib
-import Moser.MoserSet.Invariants
-import Moser.Geometry.Intersection
-import Moser.Isometry.Discretization
-import Moser.Worm.MinimalWorm
+import Moser.Manipulation.Invariants
+import Moser.Worm.Basic
+import Moser.DirectIsometry.Discretization
 
 /-!
 # Moser Set Operations
@@ -24,15 +23,15 @@ namespace WorkingSet
 def bigSetRemoval (s : WorkingSet) : WorkingSet :=
   { polygons := s.polygons.filter (fun p => p.area ≤ areaThreshold) }
 
-/-- Operation 2: Apply convex hull (identity for already-convex polygons) -/
-def hullTaking (s : WorkingSet) : WorkingSet :=
-  s  -- Already convex by type invariant
+-- /-- Operation 2: Apply convex hull (identity for already-convex polygons) -/
+-- def hullTaking (s : WorkingSet) : WorkingSet :=
+--   s  -- Already convex by type invariant
 
-/-- Operation 3: Remove polygons with vertices exceeding distance cutoff -/
-def distanceRemoval (s : WorkingSet) : WorkingSet :=
-  { polygons := s.polygons.filter fun p =>
-      p.vertices.all fun v =>
-        Point.distSq v (0, 0) ≤ distanceCutoff * distanceCutoff }
+-- /-- Operation 3: Remove polygons with vertices exceeding distance cutoff -/
+-- def distanceRemoval (s : WorkingSet) : WorkingSet :=
+--   { polygons := s.polygons.filter fun p =>
+--       p.vertices.all fun v =>
+--         Point.distSq v (0, 0) ≤ distanceCutoff * distanceCutoff }
 
 /-- Operation 4: Add a worm to the working set -/
 def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : WorkingSet :=
@@ -42,13 +41,13 @@ def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : Wor
       let transformedWorm := iso.applyPolygon wormHull
       -- Compute union by taking vertices from both polygons
       -- For simplicity, use convex hull of combined vertices
-      let combinedVertices := p.vertices ++ transformedWorm.vertices
-      some { vertices := combinedVertices }
+      let combinedVertices := p.vertex_list ++ transformedWorm.vertex_list
+      some (ConvexPolygon.ofHull combinedVertices)
   { polygons := newPolygons }
 
 /-- Apply all cleanup operations: hull, bigSet, distance removal -/
 def cleanup (s : WorkingSet) : WorkingSet :=
-  s |> hullTaking |> bigSetRemoval |> distanceRemoval
+  s |> bigSetRemoval
 
 /-- Add worm and cleanup -/
 def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : WorkingSet :=
