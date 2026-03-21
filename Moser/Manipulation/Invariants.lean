@@ -29,7 +29,7 @@ namespace WorkingSet
 
 /-- Create initial working set with just the InitialWorm -/
 def initial : WorkingSet :=
-  { polygons := [ConvexPolygon.InitialWorm] }
+  { polygons := [InitialWorm] }
 
 /-- Check if the working set is empty -/
 def isEmpty (s : WorkingSet) : Bool :=

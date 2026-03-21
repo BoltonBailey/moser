@@ -18,16 +18,9 @@ This is the number we are trying to beat with our working set polygons.
 def areaThreshold : ℚ := .divInt 232240 1000000
 
 /--
-The "initial worm" iis a worm that we
-assume any set in our working set must contain an unshifted copy of.
-
-This makes it convenient to exclude points from working set polygons
-on the basis of containing a point
-such that the hull of such a point with the initial worm would have area > threshold.
-
-We could consider redefining this when optimizing
+The isoceles right triangle with legs of length 1/2.
 -/
-def InitialWorm : ConvexPolygon where
+def IsocelesRightTriangleWorm : ConvexPolygon where
   vertex_count := 3
   vertices := fun i =>
     match i with
@@ -37,6 +30,50 @@ def InitialWorm : ConvexPolygon where
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
   vertices_extremeRationalPoints := by native_decide
+
+/--
+A square of side length 1/3.
+-/
+def SquareWorm : ConvexPolygon where
+  vertex_count := 4
+  vertices := fun i =>
+    match i with
+    | ⟨0, _⟩ => ![0, 0]
+    | ⟨1, _⟩ => ![.divInt 1 3, 0]
+    | ⟨2, _⟩ => ![.divInt 1 3, .divInt 1 3]
+    | ⟨3, _⟩ => ![0, .divInt 1 3]
+    | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
+  nodup := by native_decide
+  vertices_extremeRationalPoints := by native_decide
+
+/--
+A right triangle with legs of length 1/3 and 2/3.
+TODO parameterize this and the above worms by leg lengths, and then optimize over those parameters.
+-/
+def RightTriangleOntThirdWorm : ConvexPolygon where
+  vertex_count := 3
+  vertices := fun i =>
+    match i with
+    | ⟨0, _⟩ => ![0, 0]
+    | ⟨1, _⟩ => ![.divInt 1 3, 0]
+    | ⟨2, _⟩ => ![0, .divInt 2 3]
+    | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
+  nodup := by native_decide
+  vertices_extremeRationalPoints := by native_decide
+
+/--
+The "initial worm" is a worm that we
+assume any set in our working set must contain an unshifted copy of.
+
+This makes it convenient to exclude points from working set polygons
+on the basis of containing a point
+such that the hull of such a point with the initial worm would have area > threshold.
+
+We could consider redefining this when optimizing.
+For now, we take it to be the isoceles right triangle worm,
+since this seems to work well.
+-/
+def InitialWorm : ConvexPolygon := IsocelesRightTriangleWorm
 
 -- Example computation: area of InitialWorm
 example : InitialWorm.area = 1 / 8 := by

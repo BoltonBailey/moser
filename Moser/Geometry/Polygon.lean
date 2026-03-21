@@ -51,6 +51,9 @@ def ClosedHalfSpace.contains (h : ClosedHalfSpace) (p : RationalPoint) : Bool :=
 def RationalPoint.toWeaklyLeft (p1 p2 : RationalPoint) : ClosedHalfSpace :=
   { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p2 - p1) }
 
+def RationalPoint.toWeaklyRight (p1 p2 : RationalPoint) : ClosedHalfSpace :=
+  { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p1 - p2) }
+
 /--
 Change the half-space by moving the basepoint inward by at least `dist` in the normal direction,
 and at most `dist + tolerance` to account for numerical issues.
@@ -87,19 +90,14 @@ structure ConvexPolygon where
   vertices_extremeRationalPoints : ∀ i j k : Fin vertex_count,
     i < j → j < k →
       RationalPoint.ccw (vertices i) (vertices j) (vertices k) = true
+deriving Repr, DecidableEq
 
 def ConvexPolygon.vertex_list (poly : ConvexPolygon) : List RationalPoint :=
   List.finRange poly.vertex_count |>.map poly.vertices
 
-/--
-Obtain a rational convex polygon from a list of rational points by computing the convex hull
-and keeping only the extreme points.
--/
-def ConvexPolygon.ofHull (pts : List RationalPoint) : ConvexPolygon where
-  vertex_count := sorry
-  vertices := sorry
-  nodup := sorry
-  vertices_extremeRationalPoints := sorry
+
+def boundingClosedHalfSpaces (pts : List RationalPoint) : List ClosedHalfSpace :=
+  pts.zip (pts.rotate 1) |>.map (fun (p1, p2) => RationalPoint.toWeaklyLeft p1 p2)
 
 /-- Graham scan helper: process remaining points to build upper/lower hull -/
 def grahamScanStep (stack : List RationalPoint) (p : RationalPoint) : List RationalPoint :=
@@ -175,11 +173,6 @@ def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint 
     | l, [] => l
     | l, u => l ++ u.tail
 
-/-- The convex hull algorithm outputs are a subset of the input -/
-theorem convexHullRationalPoints_subset (points : List RationalPoint) :
-    ∀ p ∈ convexHullRationalPoints points, p ∈ points := by
-  intro p hp
-  sorry
 
 /-- grahamScanStep produces a nodup list when stack is nodup and p is not in stack -/
 theorem grahamScanStep_nodup (stack : List RationalPoint) (p : RationalPoint)
@@ -239,10 +232,10 @@ def ConvexPolygon.contains (poly : ConvexPolygon) (p : RationalPoint) : Bool :=
   | none => false
   | some halfSpaces => halfSpaces.all (fun h => h.contains p)
 
-namespace ConvexPolygon
+def ConvexPolygon.isSubsetOf (p q : ConvexPolygon) : Bool :=
+  p.vertex_list.all (fun v => q.contains v)
 
-/-- Convert a polygon to a set in ℝ² via convex hull -/
-def toSet (poly : ConvexPolygon) : Set (EuclideanSpace ℝ (Fin 2)) := sorry
+namespace ConvexPolygon
 
 /-- Shrink a convex polygon by moving each edge inward
 by at least `dist` (in the normal direction).

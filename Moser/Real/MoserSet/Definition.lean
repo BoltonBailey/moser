@@ -22,3 +22,8 @@ import Moser.Isometry.Planar
 --     ∀ v ∈ w.vertices, v ∈ M ∨ sorry  -- TODO: proper containment check
 
 -- end Moser
+
+
+
+-- /-- Convert a polygon to a set in ℝ² via convex hull -/
+-- def toSet (poly : ConvexPolygon) : Set (EuclideanSpace ℝ (Fin 2)) := sorry
