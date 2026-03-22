@@ -1,6 +1,5 @@
 import Mathlib
 import Moser.Worm.Basic
-import Moser.Isometry.Planar
 
 -- /-!
 -- # Moser Set Definition
