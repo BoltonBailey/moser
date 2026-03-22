@@ -26,6 +26,10 @@ def dotProduct (u v : RationalPoint) : ℚ := u 0 * v 0 + u 1 * v 1
 /-- Euclidean length squared of a vector -/
 def lengthSq (v : RationalPoint) : ℚ := v 0 * v 0 + v 1 * v 1
 
+lemma lengthSq_nonneg (v : RationalPoint) : 0 ≤ lengthSq v := by
+  unfold lengthSq
+  nlinarith
+
 
 /-- Check if a point is strictly to the left of the directed line from p1 to p2.
     Uses the cross product: positive means left, negative means right, zero means collinear. -/
@@ -64,15 +68,29 @@ def RationalPoint.toWeaklyRight (p1 p2 : RationalPoint) : ClosedHalfSpace :=
   { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p1 - p2) }
 
 /--
-Helper function to find a rational number whose square is between two given rationals.
+Helper function to find a positive rational number whose square is between two given rationals.
+Assumes `0 ≤ lower` and `lower < upper`.
+Returns the rational with minimal denominator in lowest terms that satisfies the condition.
 -/
-def findRationalWithSquareBetween (lower upper : ℚ) : ℚ := sorry
+def findRationalWithSquareBetween (lower upper : ℚ) (h0 : 0 ≤ lower) (hlt : lower < upper) : ℚ :=
+  sorry
+
+lemma findRationalWithSquareBetween_positive (lower upper : ℚ)
+    (h0 : 0 ≤ lower) (hlt : lower < upper) :
+    0 < findRationalWithSquareBetween lower upper h0 hlt := by
+  sorry
+
+lemma findRationalWithSquareBetween_spec (lower upper : ℚ)
+    (h0 : 0 ≤ lower) (hlt : lower < upper) :
+    let r := findRationalWithSquareBetween lower upper h0 hlt
+    lower ≤ r * r ∧ r * r ≤ upper := by
+  sorry
 
 /--
 Change the half-space by moving the basepoint inward by at least `dist` in the normal direction,
 and at most `dist + tolerance` to account for numerical issues.
 -/
-def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) :
+def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) (htol : 0 < tolerance) :
     ClosedHalfSpace :=
   let sqLen := RationalPoint.lengthSq h.direction
   -- compute a scaling of the direction
@@ -84,6 +102,9 @@ def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) :
   let scaleFactor : ℚ :=
     findRationalWithSquareBetween
       (dist * dist / sqLen) ((dist + tolerance) * (dist + tolerance) / sqLen)
+      (by
+        sorry
+      ) (by sorry)
   let scaledDirection : RationalPoint := ![h.direction 0 * scaleFactor, h.direction 1 * scaleFactor]
   { basepoint := h.basepoint + scaledDirection, direction := h.direction }
   -- sorry
@@ -278,13 +299,13 @@ namespace ConvexPolygon
 by at least `dist` (in the normal direction).
 and at most `dist + tolerance` (to account for numerical issues).
 -/
-def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) :
+def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (htol : 0 < tolerance) :
     Option ConvexPolygon :=
   let halfSpaces := poly.toHalfSpaces
   match halfSpaces with
   | none => none
   | some hs =>
-    let movedHalfSpaces := hs.map (fun h => h.moveInward dist tolerance)
+    let movedHalfSpaces := hs.map (fun h => h.moveInward dist tolerance htol)
     (ConvexPolygon.ofHalfSpaces movedHalfSpaces)
 
 end ConvexPolygon

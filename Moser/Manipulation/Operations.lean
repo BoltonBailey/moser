@@ -27,7 +27,7 @@ def supersetRemoval (s : WorkingSet) : WorkingSet :=
 def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : WorkingSet :=
   let isometries := discretizeIsometries epsilon
   let transformedWorms := isometries.filterMap (fun iso =>
-    (wormHull.shrink epsilon (epsilon / 10)).map iso.applyPolygon)
+    (wormHull.shrink epsilon (epsilon / 10) (by sorry)).map iso.applyPolygon)
   let newPolygons := s.polygons.flatMap fun p =>
     transformedWorms.filterMap fun transformedWorm =>
       -- Compute union by taking vertices from both polygons
@@ -50,7 +50,7 @@ def InitialWorkingSet : WorkingSet := {
 
 #print sorries addWormAndCleanup
 
-#eval (InitialWorkingSet.addWormAndCleanup RightTriangleOntThirdWorm (.divInt 1 100)).polygons.length
+-- #eval! (InitialWorkingSet.addWormAndCleanup RightTriangleOntThirdWorm (.divInt 1 100)).polygons.length
 
 end WorkingSet
 --
