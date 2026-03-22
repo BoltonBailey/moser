@@ -42,8 +42,17 @@ end RationalPoint
 
 structure ClosedHalfSpace where
   basepoint : RationalPoint
-  /-- The direction -/
+  /--
+  The direction, where if the dot product of this with (p - basepoint) is nonnegative,
+  then p is in the half-space.
+  -/
   direction : RationalPoint
+
+/--
+Given two closed half-spaces, compute the intersection point of their boundary lines if it exists.
+Returns none if the lines are parallel (no intersection or infinite intersection).
+-/
+def ClosedHalfSpace.lineIntersection (h1 h2 : ClosedHalfSpace) : Option RationalPoint := sorry
 
 def ClosedHalfSpace.contains (h : ClosedHalfSpace) (p : RationalPoint) : Bool :=
   RationalPoint.dotProduct h.direction (p - h.basepoint) ≥ 0
@@ -55,12 +64,29 @@ def RationalPoint.toWeaklyRight (p1 p2 : RationalPoint) : ClosedHalfSpace :=
   { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p1 - p2) }
 
 /--
+Helper function to find a rational number whose square is between two given rationals.
+-/
+def findRationalWithSquareBetween (lower upper : ℚ) : ℚ := sorry
+
+/--
 Change the half-space by moving the basepoint inward by at least `dist` in the normal direction,
 and at most `dist + tolerance` to account for numerical issues.
 -/
-def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) (tolerance_pos : 0 < tolerance) :
+def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) :
     ClosedHalfSpace :=
-  sorry
+  let sqLen := RationalPoint.lengthSq h.direction
+  -- compute a scaling of the direction
+  -- so that it is of length at least dist but at no more than (dist+tolerance)
+  -- I.e. we must scale by a factor statisfying
+  -- `dist/length < scaleFactor < (dist+tolerance)/length`
+  -- put another way, we need
+  -- `dist^2/sqLen < scaleFactor^2 < (dist+tolerance)^2/sqLen`
+  let scaleFactor : ℚ :=
+    findRationalWithSquareBetween
+      (dist * dist / sqLen) ((dist + tolerance) * (dist + tolerance) / sqLen)
+  let scaledDirection : RationalPoint := ![h.direction 0 * scaleFactor, h.direction 1 * scaleFactor]
+  { basepoint := h.basepoint + scaledDirection, direction := h.direction }
+  -- sorry
 
 structure OpenHalfSpace where
   basepoint : RationalPoint
@@ -227,6 +253,17 @@ def ConvexPolygon.toHalfSpaces (poly : ConvexPolygon) : Option (List ClosedHalfS
       RationalPoint.toWeaklyLeft p1 p2)
     some halfSpaces
 
+/--
+Given a collection of half-spaces, construct the convex polygon defined by their intersection.
+This is determined by taking all intersections of the boundary lines of pairs of half-spaces,
+and then filtering to those that satisfy all half-space constraints.
+-/
+def ConvexPolygon.ofHalfSpaces (halfSpaces : List ClosedHalfSpace) : Option ConvexPolygon :=
+  let potentialVertices := halfSpaces.flatMap (fun h1 =>
+    halfSpaces.filterMap (fun h2 => ClosedHalfSpace.lineIntersection h1 h2))
+  let vertices := potentialVertices.filter (fun v => halfSpaces.all (fun h => h.contains v))
+  some (ConvexPolygon.ofList vertices)
+
 def ConvexPolygon.contains (poly : ConvexPolygon) (p : RationalPoint) : Bool :=
   match poly.toHalfSpaces with
   | none => false
@@ -241,9 +278,13 @@ namespace ConvexPolygon
 by at least `dist` (in the normal direction).
 and at most `dist + tolerance` (to account for numerical issues).
 -/
-def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (tolerance_pos : 0 < tolerance) :
-    ConvexPolygon :=
-  sorry
-
+def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) :
+    Option ConvexPolygon :=
+  let halfSpaces := poly.toHalfSpaces
+  match halfSpaces with
+  | none => none
+  | some hs =>
+    let movedHalfSpaces := hs.map (fun h => h.moveInward dist tolerance)
+    (ConvexPolygon.ofHalfSpaces movedHalfSpaces)
 
 end ConvexPolygon
