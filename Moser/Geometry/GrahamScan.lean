@@ -57,16 +57,60 @@ and the rest are sorted by increasing polar angle with respect to the first poin
 Points that fall directly between the first point and another point
 (i.e., are collinear and closer to the first point) are removed.
 -/
-def grahamScanSortPolarAngle (points : List RationalPoint) : List RationalPoint := sorry
+def grahamScanSortPolarAngle (points : List RationalPoint) : List RationalPoint :=
+  match points with
+  | [] => []
+  | h :: _ =>
+    -- Find pivot: lowest y-coordinate, then leftmost x-coordinate in case of ties
+    let pivot := points.foldl (fun best p =>
+      if p 1 < best 1 || (p 1 == best 1 && p 0 < best 0) then p else best) h
+    -- Remove the first occurrence of pivot from the list
+    let rest := points.eraseP (fun p => p 0 == pivot 0 && p 1 == pivot 1)
+    -- Sort by polar angle from pivot using cross product comparison.
+    -- cross > 0 means a has a smaller polar angle than b (a comes first).
+    -- For collinear points in the same direction, sort by distance (closer first,
+    -- so they appear before the farthest and get filtered out below).
+    -- For collinear points in opposite directions (0° vs 180°), the rightward
+    -- point (angle 0°) comes first.
+    let sorted := rest.mergeSort (fun a b =>
+      let va := a - pivot
+      let vb := b - pivot
+      let cross := RationalPoint.crossProduct va vb
+      if cross > 0 then true
+      else if cross < 0 then false
+      else if RationalPoint.dotProduct va vb ≥ 0 then
+        RationalPoint.distSq a pivot ≤ RationalPoint.distSq b pivot
+      else
+        va 0 > 0)
+    -- Remove collinear points that are not the farthest from the pivot:
+    -- keep p only if there is no q at the same angle and farther away.
+    let filtered := sorted.filter (fun p =>
+      !(sorted.any (fun q =>
+        RationalPoint.crossProduct (p - pivot) (q - pivot) == 0 &&
+        RationalPoint.dotProduct (p - pivot) (q - pivot) > 0 &&
+        RationalPoint.distSq p pivot < RationalPoint.distSq q pivot)))
+    pivot :: filtered
 
 
+
+/-- Stack-based reduction step: push p onto stack, popping points that create non-left turns. -/
+private def grahamScanStep' (stack : List RationalPoint) (p : RationalPoint) :
+    List RationalPoint :=
+  match stack with
+  | [] => [p]
+  | [q] => [p, q]
+  | q :: r :: rest =>
+    if RationalPoint.ccw r q p then p :: stack
+    else grahamScanStep' (r :: rest) p
+termination_by stack.length
 
 /--
 A step in the graham scan algorithm:
 given a list of points sorted by increasing polar angle with respect to the first point,
 removes points that do not form a left turn with the adjacent points in the hull.
 -/
-def grahamScanReduce (points : List RationalPoint) : List RationalPoint := sorry
+def grahamScanReduce (points : List RationalPoint) : List RationalPoint :=
+  (points.foldl grahamScanStep' []).reverse
 
 /--
 The main Graham scan algorithm:

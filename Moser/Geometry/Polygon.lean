@@ -430,7 +430,7 @@ namespace ConvexPolygon
 by at least `dist` (in the normal direction).
 and at most `dist + tolerance` (to account for numerical issues).
 -/
-noncomputable def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (htol : 0 < tolerance) :
+def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (htol : 0 < tolerance) :
     Option ConvexPolygon :=
   let halfSpaces := poly.toHalfSpaces
   match halfSpaces with
