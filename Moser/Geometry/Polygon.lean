@@ -6,22 +6,69 @@ import Moser.Geometry.HalfSpaces
 This file defines convex polygons as ordered lists of rational vertices.
 -/
 
-/-- A convex polygon represented by its vertices in counterclockwise order.
-We allow degenerate polygons of 0, 1, or 2 vertices,
-but require that all vertices are distinct,
-and in counterclockwise order for 3 or more vertices.
+
+/--
+A polygon represented by its vertices.
+
+we require that all vertices are distinct, and that there are 3 or more vertices.
+
+Operations that would return a degenerate polygon (fewer than 3 vertices) return none instead.
+
+Note we do not extend mathlib's `Polygon`, because we want to bundle the vertex count.
 -/
-structure ConvexPolygon where
+structure NondegenPolygon where
+  /--
+  The number of vertices in the polygon. -/
   vertex_count : ℕ
-  /-- The vertices of the polygon in counterclockwise order -/
+  /-- vertex_count must be positive -/
+  vertex_count_pos : NeZero vertex_count
+  /--
+  Vertex count must be at least 3
+  -/
+  three_le_vertex_count : 3 ≤ vertex_count
+  /-- The vertices of the polygon, in counterclockwise order -/
   vertices : Fin vertex_count → RationalPoint
   /-- All vertices are distinct -/
   nodup : Function.Injective vertices
-  /-- Counterclockwise -/
-  vertices_extremeRationalPoints : ∀ i j k : Fin vertex_count,
-    i < j → j < k →
-      RationalPoint.ccw (vertices i) (vertices j) (vertices k) = true
 deriving Repr, DecidableEq
+
+instance (poly : NondegenPolygon) : NeZero poly.vertex_count := poly.vertex_count_pos
+
+def NondegenPolygon.getStrictlyLeftHalfspace (ng : NondegenPolygon) (i : Fin ng.vertex_count) :
+    OpenHalfSpace :=
+  let p1 := ng.vertices i
+  let p2 := ng.vertices (i + 1)
+  RationalPoint.toStrictlyLeft p1 p2 (by
+    intro ne
+    have := ng.nodup ne
+    have three_le := ng.three_le_vertex_count
+    simp_all)
+
+
+
+/--
+A convex polygon.
+
+Convexity is enforced by the condition that for each edge i→i+1,
+all other vertices lie strictly to the left of that edge.
+
+The strictness enforces that there can be no collinear triples of vertices,
+which in turn ensures that all vertices are extreme points of the convex hull.
+-/
+structure ConvexPolygon extends NondegenPolygon where
+  /-- For all edges i→i+1, all other vertices lie on or to the left (closed half-space) -/
+  vertices_extremeRationalPoints :
+    ∀ i j : Fin vertex_count, j ≠ i → j ≠ i + 1 →
+      (NondegenPolygon.getStrictlyLeftHalfspace
+        ⟨vertex_count, vertex_count_pos, three_le_vertex_count, vertices, nodup⟩ i
+      ).contains (vertices j) = true
+deriving Repr, DecidableEq
+
+
+  -- ∀ i j k : Fin vertex_count,
+  --   i < j → j < k →
+  --     RationalPoint.ccw (vertices i) (vertices j) (vertices k) = true
+
 
 /--
 The vertex list of a convex polygon, in counterclockwise order.
@@ -78,12 +125,15 @@ lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
     and keeping only extreme points of the convex hull. -/
 def ConvexPolygon.ofList (vertices : List RationalPoint) : ConvexPolygon where
   vertex_count := (convexHullRationalPoints vertices).length
+  vertex_count_pos := by sorry
+  three_le_vertex_count := by sorry
   vertices := fun i => (convexHullRationalPoints vertices).get ⟨i, by omega⟩
   nodup := by
     have : (convexHullRationalPoints vertices).Nodup := by
       exact convexHullRationalPoints_nodup vertices
     apply List.Nodup.injective_get this
   vertices_extremeRationalPoints := by
+
     sorry
 
 /--

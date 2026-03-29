@@ -22,6 +22,8 @@ The isoceles right triangle with legs of length 1/2.
 -/
 def IsocelesRightTriangleWorm : ConvexPolygon where
   vertex_count := 3
+  vertex_count_pos := inferInstance
+  three_le_vertex_count := by norm_num
   vertices := fun i =>
     match i with
     | ⟨0, _⟩ => ![0, 0]
@@ -36,6 +38,8 @@ A square of side length 1/3.
 -/
 def SquareWorm : ConvexPolygon where
   vertex_count := 4
+  vertex_count_pos := inferInstance
+  three_le_vertex_count := by norm_num
   vertices := fun i =>
     match i with
     | ⟨0, _⟩ => ![0, 0]
@@ -52,6 +56,8 @@ TODO parameterize this and the above worms by leg lengths, and then optimize ove
 -/
 def RightTriangleOntThirdWorm : ConvexPolygon where
   vertex_count := 3
+  vertex_count_pos := inferInstance
+  three_le_vertex_count := by norm_num
   vertices := fun i =>
     match i with
     | ⟨0, _⟩ => ![0, 0]
@@ -98,8 +104,9 @@ and thus reduce the fineness needed in angle discretization.
 -/
 def LocationRange : ConvexPolygon where
   vertex_count := 4
+  vertex_count_pos := inferInstance
+  three_le_vertex_count := by norm_num
   vertices := fun i =>
-
     match i with
     | ⟨0, _⟩ => ![-offset, -offset]
     | ⟨1, _⟩ => ![offset, -offset]

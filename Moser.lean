@@ -1,8 +1,11 @@
 import Moser.Constants
 import Moser.DirectIsometry.Basic
 import Moser.DirectIsometry.Discretization
+import Moser.Geometry.HalfSpaces
 import Moser.Geometry.Polygon
 import Moser.Geometry.PolygonArea
+import Moser.Geometry.RationalPoint
+import Moser.Geometry.RationalUtility
 import Moser.Manipulation.Invariants
 import Moser.Manipulation.Operations
 import Moser.Real.MoserSet.Definition
