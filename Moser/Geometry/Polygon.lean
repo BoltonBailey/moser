@@ -42,15 +42,32 @@ def ccw (p1 p2 p3 : RationalPoint) : Bool := isStrictlyLeftOf p3 p1 p2
 def rotate90Counterclockwise (p : RationalPoint) : RationalPoint :=
   ![ -p 1, p 0 ]
 
+lemma lengthSq_rotate90Counterclockwise (v : RationalPoint) :
+    lengthSq (rotate90Counterclockwise v) = lengthSq v := by
+  simp [lengthSq, rotate90Counterclockwise, Matrix.cons_val_zero, Matrix.cons_val_one]
+  ring
+
+lemma lengthSq_pos_of_ne (v : RationalPoint) (hv : v ≠ 0) : 0 < lengthSq v := by
+  simp only [lengthSq]
+  by_contra h
+  push_neg at h
+  have h0 : v 0 = 0 := by nlinarith [sq_nonneg (v 0), sq_nonneg (v 1)]
+  have h1 : v 1 = 0 := by nlinarith [sq_nonneg (v 0), sq_nonneg (v 1)]
+  exact hv (funext (fun i => by fin_cases i <;> simp_all))
+
 end RationalPoint
 
 structure ClosedHalfSpace where
   basepoint : RationalPoint
   /--
-  The direction, where if the dot product of this with (p - basepoint) is nonnegative,
+  The normal, where if the dot product of this with (p - basepoint) is nonnegative,
   then p is in the half-space.
   -/
-  direction : RationalPoint
+  normal : RationalPoint
+  /-- The normal must be nonzero (positive squared length). -/
+  normal_pos : 0 < RationalPoint.lengthSq normal
+
+-- def ClosedHalfSpace.boundingLine (half : ClosedHalfSpace) : Line := sorry
 
 /--
 Given two closed half-spaces, compute the intersection point of their boundary lines if it exists.
@@ -59,13 +76,19 @@ Returns none if the lines are parallel (no intersection or infinite intersection
 def ClosedHalfSpace.lineIntersection (h1 h2 : ClosedHalfSpace) : Option RationalPoint := sorry
 
 def ClosedHalfSpace.contains (h : ClosedHalfSpace) (p : RationalPoint) : Bool :=
-  RationalPoint.dotProduct h.direction (p - h.basepoint) ≥ 0
+  RationalPoint.dotProduct h.normal (p - h.basepoint) ≥ 0
 
-def RationalPoint.toWeaklyLeft (p1 p2 : RationalPoint) : ClosedHalfSpace :=
-  { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p2 - p1) }
+def RationalPoint.toWeaklyLeft (p1 p2 : RationalPoint) (hne : p1 ≠ p2) : ClosedHalfSpace :=
+  { basepoint := p1, normal := RationalPoint.rotate90Counterclockwise (p2 - p1),
+    normal_pos := by
+      rw [RationalPoint.lengthSq_rotate90Counterclockwise]
+      exact RationalPoint.lengthSq_pos_of_ne _ (sub_ne_zero.mpr (Ne.symm hne)) }
 
-def RationalPoint.toWeaklyRight (p1 p2 : RationalPoint) : ClosedHalfSpace :=
-  { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p1 - p2) }
+def RationalPoint.toWeaklyRight (p1 p2 : RationalPoint) (hne : p1 ≠ p2) : ClosedHalfSpace :=
+  { basepoint := p1, normal := RationalPoint.rotate90Counterclockwise (p1 - p2),
+    normal_pos := by
+      rw [RationalPoint.lengthSq_rotate90Counterclockwise]
+      exact RationalPoint.lengthSq_pos_of_ne _ (sub_ne_zero.mpr hne) }
 
 /--
 Helper function to find a positive rational number whose square is between two given rationals.
@@ -221,9 +244,9 @@ lemma findRationalWithSquareBetween_spec (lower upper : ℚ)
 Change the half-space by moving the basepoint inward by at least `dist` in the normal direction,
 and at most `dist + tolerance` to account for numerical issues.
 -/
-def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) (htol : 0 < tolerance) :
+def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) (hdist : 0 < dist) (htol : 0 < tolerance) :
     ClosedHalfSpace :=
-  let sqLen := RationalPoint.lengthSq h.direction
+  let sqLen := RationalPoint.lengthSq h.normal
   -- compute a scaling of the direction
   -- so that it is of length at least dist but at no more than (dist+tolerance)
   -- I.e. we must scale by a factor statisfying
@@ -234,22 +257,29 @@ def ClosedHalfSpace.moveInward (h : ClosedHalfSpace) (dist tolerance : ℚ) (hto
     findRationalWithSquareBetween
       (dist * dist / sqLen) ((dist + tolerance) * (dist + tolerance) / sqLen)
       (by
-        sorry
-      ) (by sorry)
-  let scaledDirection : RationalPoint := ![h.direction 0 * scaleFactor, h.direction 1 * scaleFactor]
-  { basepoint := h.basepoint + scaledDirection, direction := h.direction }
-  -- sorry
+        have : 0 ≤ h.normal.lengthSq := RationalPoint.lengthSq_nonneg h.normal
+        have : 0 ≤ dist * dist := by nlinarith
+        positivity
+      ) (by
+        -- have : 0 < h.normal.lengthSq := by exact h.normal_pos
+        have : 0 < sqLen := by exact h.normal_pos
+        -- have : 0 ≤ dist * dist := by nlinarith
+        field_simp
+        nlinarith)
+  let scaledDirection : RationalPoint := ![h.normal 0 * scaleFactor, h.normal 1 * scaleFactor]
+  { basepoint := h.basepoint + scaledDirection, normal := h.normal,
+    normal_pos := h.normal_pos }
 
 structure OpenHalfSpace where
   basepoint : RationalPoint
   /-- The direction -/
-  direction : RationalPoint
+  normal : RationalPoint
 
 def OpenHalfSpace.contains (h : OpenHalfSpace) (p : RationalPoint) : Bool :=
-  RationalPoint.dotProduct h.direction (p - h.basepoint) > 0
+  RationalPoint.dotProduct h.normal (p - h.basepoint) > 0
 
 def RationalPoint.toStrictlyLeft (p1 p2 : RationalPoint) : OpenHalfSpace :=
-  { basepoint := p1, direction := RationalPoint.rotate90Counterclockwise (p2 - p1) }
+  { basepoint := p1, normal := RationalPoint.rotate90Counterclockwise (p2 - p1) }
 
 
 
@@ -274,9 +304,6 @@ def ConvexPolygon.vertex_list (poly : ConvexPolygon) : List RationalPoint :=
   List.finRange poly.vertex_count |>.map poly.vertices
 
 
-def boundingClosedHalfSpaces (pts : List RationalPoint) : List ClosedHalfSpace :=
-  pts.zip (pts.rotate 1) |>.map (fun (p1, p2) => RationalPoint.toWeaklyLeft p1 p2)
-
 /-- Graham scan helper: process remaining points to build upper/lower hull -/
 def grahamScanStep (stack : List RationalPoint) (p : RationalPoint) : List RationalPoint :=
   match stack with
@@ -285,54 +312,6 @@ def grahamScanStep (stack : List RationalPoint) (p : RationalPoint) : List Ratio
   | q :: r :: rest =>
     if RationalPoint.ccw r q p then p :: stack
     else grahamScanStep (r :: rest) p
-
-/-- Elements of grahamScanStep output are either p or from the stack -/
-theorem grahamScanStep_subset (stack : List RationalPoint) (p : RationalPoint) :
-    ∀ x ∈ grahamScanStep stack p, x = p ∨ x ∈ stack := by
-  match stack with
-  | [] =>
-    intro x hx
-    simp only [grahamScanStep, List.mem_singleton] at hx
-    left; exact hx
-  | [q] =>
-    intro x hx
-    simp only [grahamScanStep, List.mem_cons, List.not_mem_nil, or_false] at hx
-    rcases hx with hp | hq
-    · left; exact hp
-    · right; simp only [List.mem_singleton]; exact hq
-  | q :: r :: tail =>
-    intro x hx
-    simp only [grahamScanStep] at hx
-    split_ifs at hx with h
-    · simp only [List.mem_cons] at hx ⊢
-      rcases hx with hp | hx'
-      · left; exact hp
-      · right; exact hx'
-    · have ih := grahamScanStep_subset (r :: tail) p x hx
-      rcases ih with hp | hx''
-      · left; exact hp
-      · right
-        exact List.mem_cons_of_mem q hx''
-termination_by stack.length
-
-/-- Folding grahamScanStep over a list produces elements from that list -/
-theorem foldl_grahamScanStep_subset (init : List RationalPoint) (points : List RationalPoint) :
-    ∀ x ∈ (points.foldl grahamScanStep init), x ∈ init ∨ x ∈ points := by
-  induction points generalizing init with
-  | nil =>
-    intro x hx
-    simp only [List.foldl_nil] at hx
-    left; exact hx
-  | cons p rest ih =>
-    intro x hx
-    simp only [List.foldl_cons] at hx
-    have ih' := ih (grahamScanStep init p) x hx
-    rcases ih' with h | h
-    · have := grahamScanStep_subset init p x h
-      rcases this with rfl | h'
-      · right; simp
-      · left; exact h'
-    · right; simp [h]
 
 /-- Compute the convex hull of a list of points using a Graham-scan-like algorithm.
     Returns vertices in counterclockwise order. -/
@@ -351,29 +330,6 @@ def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint 
     | l, [] => l
     | l, u => l ++ u.tail
 
-
-/-- grahamScanStep produces a nodup list when stack is nodup and p is not in stack -/
-theorem grahamScanStep_nodup (stack : List RationalPoint) (p : RationalPoint)
-    (hstack : stack.Nodup) (hp : p ∉ stack) :
-    (grahamScanStep stack p).Nodup := by
-  match stack with
-  | [] => simp [grahamScanStep]
-  | [q] =>
-    simp only [grahamScanStep, List.nodup_cons, List.mem_singleton, List.not_mem_nil,
-      not_false_eq_true, List.nodup_nil, and_true]
-    intro heq
-    exact hp (heq ▸ List.mem_singleton_self q)
-  | q :: r :: tail =>
-    simp only [grahamScanStep]
-    split_ifs with h
-    · rw [List.nodup_cons]
-      exact ⟨hp, hstack⟩
-    · apply grahamScanStep_nodup
-      · exact (List.nodup_cons.mp hstack).2
-      · intro hmem
-        apply hp
-        exact List.mem_cons_of_mem q hmem
-termination_by stack.length
 
 /-- Filter a list to keep only points that are on the convex hull boundary -/
 def filterToExtremeRationalPoints (points : List RationalPoint) : List RationalPoint :=
@@ -402,7 +358,13 @@ def ConvexPolygon.toHalfSpaces (poly : ConvexPolygon) : Option (List ClosedHalfS
     let halfSpaces := edges.map (fun i =>
       let p1 := poly.vertices i
       let p2 := poly.vertices (i + ⟨1, by omega⟩)
-      RationalPoint.toWeaklyLeft p1 p2)
+      RationalPoint.toWeaklyLeft p1 p2 (poly.nodup.ne (Fin.ext_iff.not.mpr (by
+        simp only [Fin.val_add]
+        have hi := i.isLt
+        rcases Nat.lt_or_ge (i.val + 1) poly.vertex_count with h1 | h1
+        · rw [Nat.mod_eq_of_lt h1]; omega
+        · have : i.val + 1 = poly.vertex_count := by omega
+          rw [this, Nat.mod_self]; omega))))
     some halfSpaces
 
 /--
@@ -430,13 +392,13 @@ namespace ConvexPolygon
 by at least `dist` (in the normal direction).
 and at most `dist + tolerance` (to account for numerical issues).
 -/
-def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (htol : 0 < tolerance) :
+def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (hdist : 0 < dist) (htol : 0 < tolerance) :
     Option ConvexPolygon :=
   let halfSpaces := poly.toHalfSpaces
   match halfSpaces with
   | none => none
   | some hs =>
-    let movedHalfSpaces := hs.map (fun h => h.moveInward dist tolerance htol)
+    let movedHalfSpaces := hs.map (fun h => h.moveInward dist tolerance hdist htol)
     (ConvexPolygon.ofHalfSpaces movedHalfSpaces)
 
 end ConvexPolygon

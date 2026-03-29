@@ -10,7 +10,7 @@ import Moser.DirectIsometry.Discretization
 
 namespace Moser
 
-open Rat
+open Rat Option
 
 namespace WorkingSet
 
@@ -24,10 +24,10 @@ def supersetRemoval (s : WorkingSet) : WorkingSet :=
       ¬s.polygons.any fun q => q ≠ p && q.isSubsetOf p }
 
 /-- Operation 4: Add a worm to the working set -/
-def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : WorkingSet :=
+def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
   let isometries := discretizeIsometries epsilon
-  let transformedWorms := isometries.filterMap (fun iso =>
-    (wormHull.shrink epsilon (epsilon / 10) (by sorry)).map iso.applyPolygon)
+  let transformedWorms : List ConvexPolygon := isometries.filterMap (fun iso =>
+    Option.map iso.applyPolygon (wormHull.shrink epsilon (epsilon / 10) (by grind) (by grind)) )
   let newPolygons := s.polygons.flatMap fun p =>
     transformedWorms.filterMap fun transformedWorm =>
       -- Compute union by taking vertices from both polygons
@@ -41,8 +41,8 @@ def cleanup (s : WorkingSet) : WorkingSet :=
   s |> bigSetRemoval |> supersetRemoval
 
 /-- Add worm and cleanup -/
-def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (s : WorkingSet) : WorkingSet :=
-  (s.wormAdding wormHull epsilon).cleanup
+def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
+  (s.wormAdding wormHull epsilon eps_pos).cleanup
 
 def InitialWorkingSet : WorkingSet := {
   polygons := [InitialWorm]

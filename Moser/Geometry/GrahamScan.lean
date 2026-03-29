@@ -296,8 +296,5 @@ theorem convexHull_grahamScan_eq (points : List RationalPoint) :
     --       between the pivot and the farthest collinear point, hence in the hull.
     --   (2) grahamScanReduce: each popped point q (where ¬ ccw r q p) lies inside
     --       the polygon formed by the current hull stack.
-    simp
-    refine convexHull_min ?_ ?_
-    · 
-      sorry
-    · exact convex_convexHull ℚ {p | p ∈ grahamScan points}
+    simp [grahamScan]
+    sorry
