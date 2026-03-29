@@ -50,7 +50,7 @@ def InitialWorkingSet : WorkingSet := {
 
 #print sorries addWormAndCleanup
 
--- #eval! (InitialWorkingSet.addWormAndCleanup RightTriangleOntThirdWorm (.divInt 1 100)).polygons.length
+#eval (InitialWorkingSet.addWormAndCleanup RightTriangleOntThirdWorm (.divInt 1 100) (by rfl)).polygons.length
 
 end WorkingSet
 --
