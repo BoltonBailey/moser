@@ -67,13 +67,37 @@ structure ClosedHalfSpace where
   /-- The normal must be nonzero (positive squared length). -/
   normal_pos : 0 < RationalPoint.lengthSq normal
 
--- def ClosedHalfSpace.boundingLine (half : ClosedHalfSpace) : Line := sorry
+structure Line where
+  point : RationalPoint
+  direction : RationalPoint
+  /-- direction must be nonzero -/
+  direction_pos : 0 < RationalPoint.lengthSq direction
+
+def Line.parallel (l1 l2 : Line) : Bool :=
+  RationalPoint.crossProduct l1.direction l2.direction = 0
+
+/--
+Note AI generated
+-/
+def Line.intersection (l1 l2 : Line) : Option RationalPoint :=
+  if l1.parallel l2 then none
+  else
+    let d := RationalPoint.crossProduct l1.direction l2.direction
+    let t := RationalPoint.crossProduct (l2.point - l1.point) l2.direction / d
+    some (l1.point + t • l1.direction)
+
+def ClosedHalfSpace.boundaryLine (h : ClosedHalfSpace) : Line :=
+  { point := h.basepoint, direction := RationalPoint.rotate90Counterclockwise h.normal,
+    direction_pos := by
+      rw [RationalPoint.lengthSq_rotate90Counterclockwise]
+      exact h.normal_pos }
 
 /--
 Given two closed half-spaces, compute the intersection point of their boundary lines if it exists.
 Returns none if the lines are parallel (no intersection or infinite intersection).
 -/
-def ClosedHalfSpace.lineIntersection (h1 h2 : ClosedHalfSpace) : Option RationalPoint := sorry
+def ClosedHalfSpace.lineIntersection (h1 h2 : ClosedHalfSpace) : Option RationalPoint :=
+  Line.intersection (h1.boundaryLine) (h2.boundaryLine)
 
 def ClosedHalfSpace.contains (h : ClosedHalfSpace) (p : RationalPoint) : Bool :=
   RationalPoint.dotProduct h.normal (p - h.basepoint) ≥ 0
@@ -313,8 +337,17 @@ def grahamScanStep (stack : List RationalPoint) (p : RationalPoint) : List Ratio
     if RationalPoint.ccw r q p then p :: stack
     else grahamScanStep (r :: rest) p
 
-/-- Compute the convex hull of a list of points using a Graham-scan-like algorithm.
-    Returns vertices in counterclockwise order. -/
+/--
+Compute the convex hull of a list of points using a Graham-scan-like algorithm.
+Should return a list of vertices such that:
+
+- All points in the returned list are in the input list (no new points).
+- The returned list has no duplicates.
+- The returned list is in counterclockwise order.
+- All input points are in the convex hull defined by the returned vertices.
+- The returned vertices are extreme points of the convex hull
+  (no vertex is a convex combination of others).
+-/
 def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint :=
   if points.length ≤ 1 then points
   else
@@ -331,25 +364,22 @@ def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint 
     | l, u => l ++ u.tail
 
 
-/-- Filter a list to keep only points that are on the convex hull boundary -/
-def filterToExtremeRationalPoints (points : List RationalPoint) : List RationalPoint :=
-  let hull := convexHullRationalPoints points
-  points.filter (fun p => hull.contains p)
 
 /-- Construct a ConvexPolygon from a list of points by removing duplicates
     and keeping only extreme points of the convex hull. -/
 def ConvexPolygon.ofList (vertices : List RationalPoint) : ConvexPolygon where
-  vertex_count := (filterToExtremeRationalPoints vertices).length
-  vertices := fun i => (filterToExtremeRationalPoints vertices).get ⟨i, by omega⟩
+  vertex_count := (convexHullRationalPoints vertices).length
+  vertices := fun i => (convexHullRationalPoints vertices).get ⟨i, by omega⟩
   nodup := by
-    sorry
+    have : (convexHullRationalPoints vertices).Nodup := by
+      sorry
+    apply List.Nodup.injective_get this
   vertices_extremeRationalPoints := by
     sorry
 
 /--
 Returns a list of closed half-spaces corresponding to the edges of the convex polygon.
-If there are fewer than 3 vertices,
-returns none since we cannot define half-spaces for degenerate polygons.
+If there are fewer than 3 vertices, returns none.
 -/
 def ConvexPolygon.toHalfSpaces (poly : ConvexPolygon) : Option (List ClosedHalfSpace) :=
   if h : poly.vertex_count < 3 then none
