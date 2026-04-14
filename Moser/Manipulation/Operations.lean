@@ -33,7 +33,7 @@ def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon
       -- Compute union by taking vertices from both polygons
       -- For simplicity, use convex hull of combined vertices
       let combinedVertices := p.vertex_list ++ transformedWorm.vertex_list
-      some (ConvexPolygon.ofList combinedVertices)
+      (ConvexPolygon.ofList combinedVertices)
   { polygons := newPolygons }
 
 /-- Apply all cleanup operations: bigSetRemoval -/
