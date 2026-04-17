@@ -5,3 +5,695 @@
 % If you want to split the blueprint content into several files then
 % the current file can be a simple sequence of \input. Otherwise It
 % can start with a \section or \chapter for instance.
+
+\chapter{Introduction}
+\label{cha:intro}
+
+Note: this is an AI generated blueprint
+
+Moser's worm problem asks for the convex region of least area that contains
+a congruent copy of every unit-length planar curve (a ``worm''). This
+blueprint describes an ongoing computational formalisation, in Lean~4, of
+the approach sketched in
+\href{https://thequantummilkman.substack.com/p/a-computational-approach-to-mosers}
+{``A Computational Approach to Moser's Worm Problem''}. The strategy is to
+maintain a \emph{working set} of candidate convex polygons — each of which
+is a possible ``cover'' — and iteratively intersect this set with convex
+hulls of many discretised worms under many discretised isometries, pruning
+anything too large to beat the current record.
+
+\section{Notation}
+
+We work throughout with the rational plane $\mathbb{Q}^2$, represented in
+Lean by $\Fin 2 \to \mathbb{Q}$.
+
+\chapter{Rational Geometry}
+\label{cha:rat-geom}
+
+\section{Rational points}
+
+\begin{definition}[Rational point]
+\label{def:rational-point}
+\lean{RationalPoint}
+\leanok
+A \emph{rational point} is a function $\Fin 2 \to \mathbb{Q}$, i.e.\ an
+element of $\mathbb{Q}^2$.
+\end{definition}
+
+\begin{definition}[Basic operations on rational points]
+\label{def:rp-ops}
+\lean{RationalPoint.distSq, RationalPoint.crossProduct, RationalPoint.dotProduct,
+RationalPoint.lengthSq, RationalPoint.rotate90Counterclockwise}
+\leanok
+\uses{def:rational-point}
+For $p,q \in \mathbb{Q}^2$ we define, working over $\mathbb{Q}$,
+\[
+  \operatorname{distSq}(p,q) = \lVert p-q\rVert^2, \quad
+  u \times v = u_0 v_1 - u_1 v_0, \quad
+  u \cdot v = u_0 v_0 + u_1 v_1,
+\]
+and $R(v) = (-v_1, v_0)$ for the 90${}^\circ$ counter-clockwise rotation.
+\end{definition}
+
+\begin{lemma}[Length-square is rotation-invariant]
+\label{lem:lengthSq-rot}
+\lean{RationalPoint.lengthSq_rotate90Counterclockwise}
+\leanok
+\uses{def:rp-ops}
+For every $v \in \mathbb{Q}^2$, $\lVert R(v)\rVert^2 = \lVert v\rVert^2$.
+\end{lemma}
+
+\begin{lemma}[Positive squared length]
+\label{lem:lengthSq-pos}
+\lean{RationalPoint.lengthSq_pos_of_ne}
+\leanok
+\uses{def:rp-ops}
+For every $v \in \mathbb{Q}^2$ with $v \neq 0$, $0 < \lVert v\rVert^2$.
+\end{lemma}
+
+\section{Half-spaces and lines}
+
+\begin{definition}[Closed half-space]
+\label{def:closed-halfspace}
+\lean{ClosedHalfSpace}
+\leanok
+\uses{def:rational-point}
+A \emph{closed half-space} is a triple $(b, n, h)$ where $b \in \mathbb{Q}^2$
+is a basepoint, $n \in \mathbb{Q}^2$ is a non-zero normal vector, and
+$h : 0 < \lVert n\rVert^2$ is a proof of non-degeneracy. A point $p$ is
+contained in the half-space iff $n \cdot (p - b) \ge 0$.
+\end{definition}
+
+\begin{definition}[Open half-space]
+\label{def:open-halfspace}
+\lean{OpenHalfSpace}
+\leanok
+\uses{def:rational-point}
+Same as above but with strict inequality $n \cdot (p - b) > 0$.
+\end{definition}
+
+\begin{definition}[Strictly-left half-space of an oriented edge]
+\label{def:toStrictlyLeft}
+\lean{RationalPoint.toStrictlyLeft}
+\leanok
+\uses{def:open-halfspace, lem:lengthSq-rot, lem:lengthSq-pos}
+Given distinct points $p_1, p_2 \in \mathbb{Q}^2$,
+$\operatorname{toStrictlyLeft}(p_1, p_2)$ is the open half-space with
+basepoint $p_1$ and normal $R(p_2 - p_1)$; it contains exactly the points
+strictly to the left of the oriented line from $p_1$ to $p_2$.
+\end{definition}
+
+\begin{definition}[Line]
+\label{def:line}
+\lean{Line}
+\leanok
+\uses{def:rational-point}
+A \emph{line} is given by a point, a non-zero direction, and a proof of
+direction non-degeneracy.
+\end{definition}
+
+\begin{definition}[Line intersection]
+\label{def:line-intersection}
+\lean{Line.intersection}
+\leanok
+\uses{def:line, def:rp-ops}
+Two lines are parallel iff the cross product of their directions is zero.
+For non-parallel lines we compute the unique intersection point by solving
+the linear system using the cross-product formula.
+\end{definition}
+
+\begin{definition}[Move half-space inward]
+\label{def:moveInward}
+\lean{ClosedHalfSpace.moveInward}
+\leanok
+\uses{def:closed-halfspace, def:findRatSqBetween}
+Given a closed half-space $H$, a distance $d > 0$ and a tolerance $\tau > 0$,
+$\operatorname{moveInward}(H, d, \tau)$ is a closed half-space whose
+boundary is parallel to that of $H$ and shifted inward in the normal
+direction by a rational amount $\alpha$ with $d \le \alpha \le d + \tau$.
+\end{definition}
+
+\section{Rational square-root utility}
+
+\begin{definition}[Rational with square in a given range]
+\label{def:findRatSqBetween}
+\lean{findRationalWithSquareBetween}
+\leanok
+Given $0 \le \ell < u$ in $\mathbb{Q}$, the function
+$\operatorname{findRationalWithSquareBetween}(\ell, u)$ returns a positive
+rational $r$ with $\ell \le r^2 \le u$. The construction takes
+$N = \lceil (u+1)/(u-\ell) \rceil + 1$ and
+$m = \lfloor \sqrt{\lfloor \ell N^2 \rfloor} \rfloor + 1$, and returns $m/N$.
+\end{definition}
+
+\begin{lemma}[Positivity]
+\label{lem:findRat-pos}
+\lean{findRationalWithSquareBetween_positive}
+\leanok
+\uses{def:findRatSqBetween}
+The value returned by $\operatorname{findRationalWithSquareBetween}$ is
+positive.
+\end{lemma}
+
+\begin{lemma}[Square bracket]
+\label{lem:findRat-spec}
+\lean{findRationalWithSquareBetween_spec}
+\leanok
+\uses{def:findRatSqBetween}
+For $0 \le \ell < u$ the value $r = \operatorname{findRationalWithSquareBetween}(\ell, u)$
+satisfies $\ell \le r^2 \le u$.
+\end{lemma}
+
+\chapter{Convex Polygons}
+\label{cha:convex-poly}
+
+\section{Definition}
+
+\begin{definition}[Non-degenerate polygon]
+\label{def:nondeg-poly}
+\lean{NondegenPolygon}
+\leanok
+\uses{def:rational-point}
+A \emph{non-degenerate polygon} consists of an integer $n \ge 3$, together
+with an injective map $v : \Fin n \to \mathbb{Q}^2$ giving the vertices in
+counter-clockwise order.
+\end{definition}
+
+\begin{definition}[Strictly-left half-space of an edge]
+\label{def:poly-edge-halfspace}
+\lean{NondegenPolygon.getStrictlyLeftHalfspace}
+\leanok
+\uses{def:nondeg-poly, def:toStrictlyLeft}
+For each edge $v_i \to v_{i+1}$ of a non-degenerate polygon, the associated
+open half-space consists of the points strictly to the left of the oriented
+edge.
+\end{definition}
+
+\begin{definition}[Convex polygon]
+\label{def:convex-poly}
+\lean{ConvexPolygon}
+\leanok
+\uses{def:nondeg-poly, def:poly-edge-halfspace}
+A \emph{convex polygon} is a non-degenerate polygon in which, for every
+edge $v_i \to v_{i+1}$, all other vertices lie strictly to the left of the
+edge. Strictness excludes collinear triples of vertices, so every vertex is
+an extreme point of the convex hull.
+\end{definition}
+
+\begin{definition}[Vertex list]
+\label{def:vertex-list}
+\lean{ConvexPolygon.vertex_list}
+\leanok
+\uses{def:convex-poly}
+The list of vertices of a convex polygon in counter-clockwise order.
+\end{definition}
+
+\section{Convex hull and containment}
+
+\begin{definition}[Graham-scan step]
+\label{def:grahamScanStep}
+\lean{grahamScanStep}
+\leanok
+\uses{def:rp-ops}
+One step of the Graham scan: given a stack of candidate hull vertices and a
+new point $p$, pop points until the top two together with $p$ form a
+counter-clockwise turn, then push $p$.
+\end{definition}
+
+\begin{definition}[Convex hull]
+\label{def:convexHullRP}
+\lean{convexHullRationalPoints}
+A function that computes the convex hull of a list of rational points,
+returning its extreme points in counter-clockwise order, starting from the
+lowest-$x$ (then lowest-$y$) point.
+\end{definition}
+
+\begin{lemma}[Convex hull has no duplicates]
+\label{lem:hull-nodup}
+\lean{convexHullRationalPoints_nodup}
+\uses{def:convexHullRP}
+The list returned by $\operatorname{convexHullRationalPoints}$ contains no
+duplicates.
+\end{lemma}
+
+\begin{definition}[Build polygon from list of points]
+\label{def:polyFromList}
+\lean{ConvexPolygon.ofList}
+\uses{def:convex-poly, def:convexHullRP}
+From a list of rational points, remove duplicates and non-extreme points
+and build a $\operatorname{ConvexPolygon}$; return $\bot$ if fewer than
+three extreme points remain.
+\end{definition}
+
+\begin{definition}[Half-space representation]
+\label{def:polyToHalfSpaces}
+\lean{ConvexPolygon.toHalfSpaces}
+\leanok
+\uses{def:convex-poly, def:closed-halfspace}
+Each edge $v_i \to v_{i+1}$ of a convex polygon determines a closed
+half-space (``on or to the left of the edge''). Their list is the
+half-space representation.
+\end{definition}
+
+\begin{definition}[Polygon from half-spaces]
+\label{def:polyFromHalfSpaces}
+\lean{ConvexPolygon.ofHalfSpaces}
+\uses{def:polyFromList, def:line-intersection, def:closed-halfspace}
+Given a list of closed half-spaces, compute all pairwise boundary-line
+intersections, filter to those satisfying all constraints, and feed the
+result through $\operatorname{ConvexPolygon.ofList}$.
+\end{definition}
+
+\begin{definition}[Point containment]
+\label{def:polyContains}
+\lean{ConvexPolygon.contains}
+\leanok
+\uses{def:polyToHalfSpaces}
+A polygon contains a point iff every edge half-space contains it.
+\end{definition}
+
+\begin{definition}[Subset test]
+\label{def:polyIsSubsetOf}
+\lean{ConvexPolygon.isSubsetOf}
+\leanok
+\uses{def:polyContains}
+Polygon $P$ is a subset of polygon $Q$ iff every vertex of $P$ is contained
+in $Q$.
+\end{definition}
+
+\begin{definition}[Shrink]
+\label{def:polyShrink}
+\lean{ConvexPolygon.shrink}
+\uses{def:polyToHalfSpaces, def:moveInward, def:polyFromHalfSpaces}
+Shrink a convex polygon by moving each edge inward by at least $d$ and at
+most $d + \tau$ in the normal direction, then rebuild the polygon from the
+resulting half-spaces.
+\end{definition}
+
+\section{Area}
+
+\begin{definition}[Shoelace area]
+\label{def:shoelace}
+\lean{shoelaceArea}
+\leanok
+\uses{def:rational-point}
+For a list of vertices $p_0, \ldots, p_{n-1}$ (with $p_n = p_0$) in
+$\mathbb{Q}^2$, set
+\[
+  \operatorname{shoelaceArea}(p_0, \ldots, p_{n-1}) =
+  \frac{1}{2}\,\bigl|\,\textstyle\sum_{i=0}^{n-1} (x_i y_{i+1} - x_{i+1} y_i)\bigr|.
+\]
+For lists of length less than $3$ the area is $0$.
+\end{definition}
+
+\begin{definition}[Polygon area]
+\label{def:polyArea}
+\lean{ConvexPolygon.area}
+\leanok
+\uses{def:convex-poly, def:vertex-list, def:shoelace}
+The area of a convex polygon is the shoelace area of its vertex list.
+\end{definition}
+
+\chapter{Worms}
+\label{cha:worms}
+
+\section{Approximate length}
+
+\begin{definition}[Babylonian square root]
+\label{def:sqrtApprox}
+\lean{Moser.sqrtApprox}
+\leanok
+Given $s \ge 0$ and $\varepsilon > 0$, $\operatorname{sqrtApprox}(s,\varepsilon)$
+applies Newton's method $x \mapsto \tfrac12(x + s/x)$ to produce a rational
+approximation of $\sqrt{s}$ within $\varepsilon$.
+\end{definition}
+
+\begin{definition}[Approximate distance and path length]
+\label{def:distApprox}
+\lean{Moser.distanceApprox, Moser.totalLengthApprox}
+\leanok
+\uses{def:sqrtApprox, def:rp-ops}
+$\operatorname{distanceApprox}(p,q,\varepsilon) = \operatorname{sqrtApprox}(\operatorname{distSq}(p,q),\varepsilon)$,
+and $\operatorname{totalLengthApprox}$ sums approximate distances along
+consecutive vertices with per-segment tolerance $\varepsilon/n$.
+\end{definition}
+
+\section{Worms}
+
+\begin{definition}[Worm]
+\label{def:worm}
+\lean{Moser.Worm}
+\leanok
+\uses{def:rational-point}
+A \emph{worm} is a list of rational points of length at least~$2$, viewed as
+a piecewise-linear path in $\mathbb{Q}^2$.
+\end{definition}
+
+\begin{definition}[Scale]
+\label{def:worm-scale}
+\lean{Moser.Worm.scale}
+\leanok
+\uses{def:worm}
+Scaling a worm by $s \in \mathbb{Q}$ multiplies every vertex coordinate by
+$s$.
+\end{definition}
+
+\begin{definition}[Approximate length, rescale to unit]
+\label{def:worm-length}
+\lean{Moser.Worm.lengthApprox, Moser.Worm.scaleToUnit}
+\leanok
+\uses{def:worm, def:distApprox, def:worm-scale}
+The approximate length of a worm is the approximate total path length of
+its vertices. A worm is rescaled to (approximate) unit length by dividing
+by this length.
+\end{definition}
+
+\begin{definition}[Convex hull of a worm]
+\label{def:worm-hull}
+\lean{Moser.Worm.toConvexPolygon, Moser.Worm.convexHullPolygon}
+\uses{def:worm, def:convex-poly}
+The convex hull of the vertices of a worm, as a $\operatorname{ConvexPolygon}$.
+\end{definition}
+
+\begin{definition}[Unit worm]
+\label{def:unit-worm}
+\lean{Moser.UnitWorm}
+\leanok
+\uses{def:worm, def:worm-length}
+A \emph{unit worm} is a worm together with a proof that its approximate
+length tends to $1$ as $\varepsilon \to 0$.
+\end{definition}
+
+\begin{definition}[Rescale to unit worm]
+\label{def:to-unit-worm}
+\lean{Moser.Worm.toUnitWorm}
+\uses{def:worm, def:unit-worm, def:worm-length}
+Rescale a worm to unit length to obtain a unit worm.
+\end{definition}
+
+\chapter{Direct Isometries}
+\label{cha:isom}
+
+\section{Definition}
+
+\begin{definition}[Direct isometry]
+\label{def:direct-isom}
+\lean{Moser.DirectIsometry}
+\leanok
+\uses{def:rational-point}
+A \emph{direct isometry} of $\mathbb{Q}^2$ is a quadruple $(c, s, t, v)$
+where $c, s \in \mathbb{Q}$ satisfy $v : c^2 + s^2 = 1$ and $t \in \mathbb{Q}^2$.
+Interpretation: rotate by the rational angle with cosine $c$ and sine $s$,
+then translate by $t$.
+\end{definition}
+
+\begin{definition}[Identity]
+\label{def:isom-id}
+\lean{Moser.DirectIsometry.id}
+\leanok
+\uses{def:direct-isom}
+The identity isometry $(1, 0, 0, \cdot)$.
+\end{definition}
+
+\begin{definition}[Apply to a point]
+\label{def:isom-apply}
+\lean{Moser.DirectIsometry.apply}
+\leanok
+\uses{def:direct-isom}
+$(c, s, t) \cdot p = (c p_0 - s p_1, s p_0 + c p_1) + t$.
+\end{definition}
+
+\section{Bijectivity and extensionality}
+
+\begin{lemma}[Injectivity]
+\label{lem:isom-inj}
+\lean{Moser.DirectIsometry.apply_injective}
+\leanok
+\uses{def:isom-apply}
+For every direct isometry $I$, the action $p \mapsto I \cdot p$ is
+injective.
+\end{lemma}
+
+\begin{lemma}[Surjectivity]
+\label{lem:isom-surj}
+\lean{Moser.DirectIsometry.apply_surjective}
+\leanok
+\uses{def:isom-apply}
+For every direct isometry $I$, the action $p \mapsto I \cdot p$ is
+surjective.
+\end{lemma}
+
+\begin{lemma}[Function-like extensionality]
+\label{lem:isom-funlike}
+\lean{Moser.DirectIsometry.instFunLike}
+\leanok
+\uses{def:isom-apply, lem:isom-inj, lem:isom-surj}
+Direct isometries are determined by their action: two isometries with the
+same action are equal.
+\end{lemma}
+
+\section{Action on polygons, composition}
+
+\begin{definition}[Apply to a polygon]
+\label{def:isom-applyPoly}
+\lean{Moser.DirectIsometry.applyPolygon}
+\leanok
+\uses{def:direct-isom, def:convex-poly, lem:isom-inj}
+Apply an isometry vertex-by-vertex to a convex polygon. Convexity is
+preserved because rotations preserve cross products (the $\sin^2+\cos^2=1$
+identity is exactly the Jacobian determinant) and translations preserve
+differences.
+\end{definition}
+
+\begin{definition}[Composition]
+\label{def:isom-compose}
+\lean{Moser.DirectIsometry.compose}
+\leanok
+\uses{def:direct-isom, def:isom-apply}
+The composition $I_1 \circ I_2$ of two direct isometries has cosine
+$c_1 c_2 - s_1 s_2$, sine $s_1 c_2 + c_1 s_2$, and translation
+$I_1 \cdot t_2$.
+\end{definition}
+
+\chapter{Constants and Location Range}
+\label{cha:constants}
+
+\begin{definition}[Area threshold]
+\label{def:areaThreshold}
+\lean{Moser.areaThreshold}
+\leanok
+The target area threshold $0.232240$ — a current best upper bound we try to
+improve upon, stored as the rational $232240 / 10^6$.
+\end{definition}
+
+\begin{definition}[Canonical candidate worms]
+\label{def:canonical-worms}
+\lean{Moser.IsocelesRightTriangleWorm, Moser.SquareWorm,
+Moser.RightTriangleOntThirdWorm}
+\leanok
+\uses{def:convex-poly}
+Three explicit convex polygons used as reference worms: the isosceles right
+triangle with legs of length $1/2$, the square of side $1/3$, and the right
+triangle with legs $1/3$ and $2/3$.
+\end{definition}
+
+\begin{definition}[Initial worm]
+\label{def:initial-worm}
+\lean{Moser.InitialWorm}
+\leanok
+\uses{def:canonical-worms}
+The ``initial worm'' that every working-set polygon is assumed to contain
+(after some isometry). We currently take it to be the isosceles right
+triangle worm, which empirically works well.
+\end{definition}
+
+\begin{lemma}[Area of the initial worm]
+\label{lem:initial-worm-area}
+\lean{}
+\leanok
+\uses{def:initial-worm, def:polyArea}
+$\operatorname{area}(\operatorname{InitialWorm}) = 1/8$.
+\end{lemma}
+
+\begin{definition}[Offset and location range]
+\label{def:locationRange}
+\lean{Moser.offset, Moser.LocationRange}
+\leanok
+\uses{def:areaThreshold, def:convex-poly}
+Let $\delta = 4 \cdot \operatorname{areaThreshold}$. The \emph{location
+range} is the axis-aligned square with vertices $(\pm\delta, \pm\delta)$.
+Every point of a working-set polygon lies inside this square; otherwise the
+triangle formed with the initial worm would already exceed the area
+threshold.
+\end{definition}
+
+\begin{definition}[Distance cutoff]
+\label{def:distanceCutoff}
+\lean{Moser.upperBoundSqrtTwo, Moser.distanceCutoff}
+\leanok
+\uses{def:locationRange}
+Using a rational upper bound $\upsilon \ge \sqrt 2$ accurate to $15$
+decimal places, the \emph{distance cutoff} is $\delta \cdot \upsilon$, an
+upper bound on the Euclidean distance from the origin to any point of the
+location range.
+\end{definition}
+
+\chapter{Discretisation of Isometries}
+\label{cha:discretisation}
+
+\begin{definition}[Trigonometric approximations]
+\label{def:trig-approx}
+\lean{Moser.piApprox, Moser.sinApprox, Moser.cosApprox}
+\leanok
+Rational approximations of $\pi$, $\sin$, and $\cos$: $\pi \approx 355/113$,
+$\sin x \approx x - x^3/6 + x^5/120$, $\cos x \approx 1 - x^2/2 + x^4/24$.
+\end{definition}
+
+\begin{definition}[Rational grid]
+\label{def:rational-grid}
+\lean{Moser.rationalGrid}
+\leanok
+$\operatorname{rationalGrid}(\min,\max,\operatorname{step})$ is the finite
+list of rational numbers of the form $\min + k\cdot\operatorname{step}$ in
+$[\min,\max)$.
+\end{definition}
+
+\begin{definition}[Rational unit-circle grid]
+\label{def:angleGrid}
+\lean{Moser.angleGridAux, Moser.angleGrid}
+\leanok
+Rational points on the unit circle are produced via the complex-squaring
+trick: for integers $a, b$ with $a^2+b^2 \neq 0$,
+\[
+  c = \frac{a^2 - b^2}{a^2 + b^2}, \qquad s = \frac{2ab}{a^2 + b^2}
+\]
+satisfies $c^2 + s^2 = 1$. Iterating $a = 0, \ldots, n$ with $b = n$ and
+taking all four sign combinations yields a list whose gaps in angle are
+controlled by $n$.
+\end{definition}
+
+\begin{lemma}[Unit-circle identity]
+\label{lem:unit-circle-sq}
+\lean{Moser.unit_circle_from_complex_square}
+\leanok
+For any $a, b \in \mathbb{Q}$ with $a^2 + b^2 \neq 0$,
+$\left(\tfrac{a^2-b^2}{a^2+b^2}\right)^2 + \left(\tfrac{2ab}{a^2+b^2}\right)^2 = 1$.
+\end{lemma}
+
+\begin{lemma}[Grids lie on the unit circle]
+\label{lem:angleGrid-spec}
+\lean{Moser.angleGridAux_spec, Moser.angleGrid_spec}
+\leanok
+\uses{def:angleGrid, lem:unit-circle-sq}
+Every pair $(c, s)$ in either $\operatorname{angleGridAux}(n)$ or
+$\operatorname{angleGrid}(\Delta)$ satisfies $c^2 + s^2 = 1$.
+\end{lemma}
+
+\begin{definition}[Discretised isometries]
+\label{def:discretizeIsometries}
+\lean{Moser.discretizeIsometries, Moser.defaultDiscretization}
+\leanok
+\uses{def:direct-isom, def:angleGrid, def:rational-grid, def:locationRange,
+def:distanceCutoff, lem:angleGrid-spec}
+Given $\varepsilon > 0$, build the list of all direct isometries with
+rotation taken from
+$\operatorname{angleGrid}(\varepsilon/(3\cdot\operatorname{distanceCutoff}))$
+and translation in $\operatorname{rationalGrid}$ inside the location range,
+filtering translations by $\operatorname{LocationRange.contains}$. The
+default uses $\varepsilon = 1/10$.
+\end{definition}
+
+\chapter{Working Set}
+\label{cha:working-set}
+
+\begin{definition}[Working set]
+\label{def:working-set}
+\lean{Moser.WorkingSet}
+\leanok
+\uses{def:convex-poly}
+A \emph{working set} is a list of convex polygons. The algorithmic
+invariants we wish to maintain (not yet proved) are:
+\begin{enumerate}
+  \item every polygon contains $\operatorname{InitialWorm}$ up to some
+        direct isometry, and
+  \item every Moser set with area $< \operatorname{areaThreshold}$ contains
+        some polygon of the working set (again, up to an isometry).
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Initial working set]
+\label{def:ws-initial}
+\lean{Moser.WorkingSet.initial, Moser.WorkingSet.InitialWorkingSet}
+\leanok
+\uses{def:working-set, def:initial-worm}
+The working set consisting of just $\operatorname{InitialWorm}$.
+\end{definition}
+
+\begin{definition}[Basic queries]
+\label{def:ws-queries}
+\lean{Moser.WorkingSet.isEmpty, Moser.WorkingSet.size,
+Moser.WorkingSet.minAreaPolygon, Moser.WorkingSet.minArea}
+\leanok
+\uses{def:working-set, def:polyArea}
+Emptiness, cardinality, and minimum-area polygon / minimum area of a
+working set.
+\end{definition}
+
+\section{Operations}
+
+\begin{definition}[Big-set removal]
+\label{def:op-bigSetRemoval}
+\lean{Moser.WorkingSet.bigSetRemoval}
+\leanok
+\uses{def:working-set, def:polyArea, def:areaThreshold}
+Discard every polygon whose area exceeds $\operatorname{areaThreshold}$.
+\end{definition}
+
+\begin{definition}[Superset removal]
+\label{def:op-supersetRemoval}
+\lean{Moser.WorkingSet.supersetRemoval}
+\leanok
+\uses{def:working-set, def:polyIsSubsetOf}
+Discard every polygon that is a strict superset of another polygon in the
+working set.
+\end{definition}
+
+\begin{definition}[Worm adding]
+\label{def:op-wormAdding}
+\lean{Moser.WorkingSet.wormAdding}
+\uses{def:working-set, def:polyShrink, def:discretizeIsometries,
+def:isom-applyPoly, def:polyFromList}
+Given the convex hull of a unit worm $W$ and an error $\varepsilon > 0$,
+compute $\operatorname{shrink}(W, \varepsilon, \varepsilon/10)$, apply
+every discretised isometry to the result, and replace every polygon $P$ in
+the working set by $\operatorname{ConvexPolygon.ofList}(P \cup I(W'))$ for
+every transformed worm $I(W')$.
+\end{definition}
+
+\begin{definition}[Cleanup and main iteration]
+\label{def:op-cleanup}
+\lean{Moser.WorkingSet.cleanup, Moser.WorkingSet.addWormAndCleanup}
+\uses{def:op-bigSetRemoval, def:op-supersetRemoval, def:op-wormAdding}
+$\operatorname{cleanup}$ is $\operatorname{supersetRemoval} \circ
+\operatorname{bigSetRemoval}$;
+$\operatorname{addWormAndCleanup}$ adds a worm and then cleans up.
+\end{definition}
+
+\chapter{Roadmap}
+\label{cha:roadmap}
+
+The blueprint above corresponds, roughly, to the state of the repository at
+the time of writing. Major outstanding items include:
+\begin{itemize}
+  \item Implementing $\operatorname{convexHullRationalPoints}$ and proving
+        its specification (\cref{def:convexHullRP,lem:hull-nodup}).
+  \item Implementing $\operatorname{Worm.toConvexPolygon}$ and
+        $\operatorname{Worm.toUnitWorm}$
+        (\cref{def:worm-hull,def:to-unit-worm}).
+  \item Formalising the working-set invariants listed in
+        \cref{def:working-set} and proving that each operation
+        (\cref{def:op-bigSetRemoval,def:op-supersetRemoval,def:op-wormAdding})
+        preserves them.
+  \item Proving angle-coverage for $\operatorname{angleGrid}$ and deriving
+        a formal statement for $\operatorname{discretizeIsometries}$.
+\end{itemize}
