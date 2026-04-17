@@ -107,7 +107,8 @@ lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
 
 -- lemma convexHullRationalPoints_extreme (points : List RationalPoint) :
 --     (convexHullRationalPoints points).All (fun v =>
---       ¬(convexHullRationalPoints points).Any (fun w => w ≠ v && RationalPoint.isStrictlyLeftOf w v (convexHullRationalPoints points.head))) := by
+--       ¬(convexHullRationalPoints points).Any (fun w => w ≠ v &&
+--         RationalPoint.isStrictlyLeftOf w v (convexHullRationalPoints points.head))) := by
 --   sorry
 
 /--
@@ -161,8 +162,8 @@ namespace ConvexPolygon
 by at least `dist` (in the normal direction).
 and at most `dist + tolerance` (to account for numerical issues).
 -/
-def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ) (hdist : 0 < dist) (htol : 0 < tolerance) :
-    Option ConvexPolygon :=
+def shrink (poly : ConvexPolygon) (dist : ℚ) (tolerance : ℚ)
+    (hdist : 0 < dist) (htol : 0 < tolerance) : Option ConvexPolygon :=
   let halfSpaces := poly.toHalfSpaces
   match halfSpaces with
   | none => none

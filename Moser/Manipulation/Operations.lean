@@ -24,7 +24,8 @@ def supersetRemoval (s : WorkingSet) : WorkingSet :=
       ¬s.polygons.any fun q => q ≠ p && q.isSubsetOf p }
 
 /-- Operation 4: Add a worm to the working set -/
-def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
+def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon)
+    (s : WorkingSet) : WorkingSet :=
   let isometries := discretizeIsometries epsilon
   let transformedWorms : List ConvexPolygon := isometries.filterMap (fun iso =>
     Option.map iso.applyPolygon (wormHull.shrink epsilon (epsilon / 10) (by grind) (by grind)) )
@@ -41,7 +42,8 @@ def cleanup (s : WorkingSet) : WorkingSet :=
   s |> bigSetRemoval |> supersetRemoval
 
 /-- Add worm and cleanup -/
-def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
+def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon)
+    (s : WorkingSet) : WorkingSet :=
   (s.wormAdding wormHull epsilon eps_pos).cleanup
 
 def InitialWorkingSet : WorkingSet := {
@@ -50,7 +52,8 @@ def InitialWorkingSet : WorkingSet := {
 
 #print sorries addWormAndCleanup
 
--- #eval (InitialWorkingSet.addWormAndCleanup RightTriangleOntThirdWorm (.divInt 1 100) (by rfl)).polygons.length
+-- #eval (InitialWorkingSet.addWormAndCleanup RightTriangleOntThirdWorm
+--   (.divInt 1 100) (by rfl)).polygons.length
 
 end WorkingSet
 --

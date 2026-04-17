@@ -39,7 +39,8 @@ open Rat
 -- find the length of its worms approximately.
 -- And then rescale the polygon for at least one worm to have unit length.
 -- -/
--- def ConvexPolygon.rescaleToUnitWorm (poly : ConvexPolygon) (epsilon : ℚ) : Option ConvexPolygon :=
+-- def ConvexPolygon.rescaleToUnitWorm (poly : ConvexPolygon) (epsilon : ℚ) :
+--     Option ConvexPolygon :=
 --   let worms := enumerateWormsFromPolygon poly
 --   -- Upper bound on lengths of worms
 --   let wormLengths := worms.map (fun w => w.lengthApprox epsilon + epsilon)

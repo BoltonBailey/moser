@@ -50,7 +50,7 @@ lemma lengthSq_rotate90Counterclockwise (v : RationalPoint) :
 lemma lengthSq_pos_of_ne (v : RationalPoint) (hv : v ≠ 0) : 0 < lengthSq v := by
   simp only [lengthSq]
   by_contra h
-  push_neg at h
+  push Not at h
   have h0 : v 0 = 0 := by nlinarith [sq_nonneg (v 0), sq_nonneg (v 1)]
   have h1 : v 1 = 0 := by nlinarith [sq_nonneg (v 0), sq_nonneg (v 1)]
   exact hv (funext (fun i => by fin_cases i <;> simp_all))

@@ -16,7 +16,8 @@ import Moser.Worm.Basic
 --                                      ↑iso.sin * p.1 + ↑iso.cos * p.2 + ↑iso.translation.2)) M
 
 -- /-- A computational approximation: M is a Moser set if every worm from a finite list fits -/
--- def IsApproximateMoserSet (M : Set (ℝ × ℝ)) (worms : List ConvexPolygon) (isos : List DirectIsometry) : Prop :=
+-- def IsApproximateMoserSet (M : Set (ℝ × ℝ)) (worms : List ConvexPolygon)
+--     (isos : List DirectIsometry) : Prop :=
 --   ∀ w ∈ worms, ∃ iso ∈ isos,
 --     ∀ v ∈ w.vertices, v ∈ M ∨ sorry  -- TODO: proper containment check
 
