@@ -32,8 +32,11 @@ structure NondegenPolygon where
   nodup : Function.Injective vertices
 deriving Repr, DecidableEq
 
+attribute [nolint unusedArguments] instReprNondegenPolygon.repr
+
 instance (poly : NondegenPolygon) : NeZero poly.vertex_count := poly.vertex_count_pos
 
+/-- The open half-space strictly to the left of the directed edge from vertex `i` to vertex `i+1`. -/
 def NondegenPolygon.getStrictlyLeftHalfspace (ng : NondegenPolygon) (i : Fin ng.vertex_count) :
     OpenHalfSpace :=
   let p1 := ng.vertices i
@@ -63,6 +66,8 @@ structure ConvexPolygon extends NondegenPolygon where
         ⟨vertex_count, vertex_count_pos, three_le_vertex_count, vertices, nodup⟩ i
       ).contains (vertices j) = true
 deriving Repr, DecidableEq
+
+attribute [nolint unusedArguments] instReprConvexPolygon.repr
 
 
   -- ∀ i j k : Fin vertex_count,
@@ -147,11 +152,13 @@ def ConvexPolygon.ofHalfSpaces (halfSpaces : List ClosedHalfSpace) : Option Conv
   let vertices := potentialVertices.filter (fun v => halfSpaces.all (fun h => h.contains v))
   (ConvexPolygon.ofList vertices)
 
+/-- Decide whether the point `p` lies in the convex polygon `poly`. -/
 def ConvexPolygon.contains (poly : ConvexPolygon) (p : RationalPoint) : Bool :=
   match poly.toHalfSpaces with
   | none => false
   | some halfSpaces => halfSpaces.all (fun h => h.contains p)
 
+/-- Decide whether every vertex of `p` lies in `q`, witnessing `p ⊆ q` for convex polygons. -/
 def ConvexPolygon.isSubsetOf (p q : ConvexPolygon) : Bool :=
   p.vertex_list.all (fun v => q.contains v)
 

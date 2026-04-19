@@ -15,13 +15,15 @@ def sqrtApprox (s : ℚ) (epsilon : ℚ) (fuel : ℕ := 100) : ℚ :=
   if s ≤ 0 then 0
   else
     -- Newton iteration: x_{n+1} = (x_n + s/x_n) / 2
-    let rec newton (x : ℚ) (n : ℕ) : ℚ :=
-      if n = 0 then x
-      else
-        let x' := (x + s / x) / 2
-        -- Stop if we're close enough: |x'^2 - s| < epsilon * x' approximately
-        if |x' * x' - s| < epsilon * epsilon then x'
-        else newton x' (n - 1)
+    let rec
+      /-- One step of the Newton iteration on `x`, recursing up to `n` more times. -/
+      newton (x : ℚ) (n : ℕ) : ℚ :=
+        if n = 0 then x
+        else
+          let x' := (x + s / x) / 2
+          -- Stop if we're close enough: |x'^2 - s| < epsilon * x' approximately
+          if |x' * x' - s| < epsilon * epsilon then x'
+          else newton x' (n - 1)
     -- Initial guess: max(1, s) is a reasonable starting point
     newton (max 1 s) fuel
 

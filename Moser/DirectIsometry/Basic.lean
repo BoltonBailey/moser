@@ -32,7 +32,8 @@ def apply (iso : DirectIsometry) (p : RationalPoint) : RationalPoint :=
   let rotated := ![iso.cos * p 0 - iso.sin * p 1, iso.sin * p 0 + iso.cos * p 1]
   rotated + iso.translation
 
-def apply_injective (iso : DirectIsometry) : Function.Injective (iso.apply) := by
+/-- Applying a `DirectIsometry` is an injective function on `RationalPoint`. -/
+theorem apply_injective (iso : DirectIsometry) : Function.Injective (iso.apply) := by
   intro x y h
   simp only [apply, Nat.succ_eq_add_one, Nat.reduceAdd, Fin.isValue, Matrix.cons_add,
     Matrix.empty_add_empty, Matrix.vecCons_inj, add_left_inj, and_true] at h
@@ -52,7 +53,8 @@ def apply_injective (iso : DirectIsometry) : Function.Injective (iso.apply) := b
   · exact eq0
   · exact eq1
 
-def apply_surjective (iso : DirectIsometry) : Function.Surjective (iso.apply) := by
+/-- Applying a `DirectIsometry` is a surjective function on `RationalPoint`. -/
+theorem apply_surjective (iso : DirectIsometry) : Function.Surjective (iso.apply) := by
   intro q
   refine ⟨![iso.cos * (q 0 - iso.translation 0) + iso.sin * (q 1 - iso.translation 1),
              -iso.sin * (q 0 - iso.translation 0) + iso.cos * (q 1 - iso.translation 1)], ?_⟩

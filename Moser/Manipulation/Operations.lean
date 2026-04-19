@@ -44,6 +44,7 @@ def cleanup (s : WorkingSet) : WorkingSet :=
 def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
   (s.wormAdding wormHull epsilon eps_pos).cleanup
 
+/-- The initial working set: a single polygon, the `InitialWorm`. -/
 def InitialWorkingSet : WorkingSet := {
   polygons := [InitialWorm]
 }
