@@ -2,6 +2,7 @@ name = "moser"
 version = "0.1.0"
 keywords = ["math"]
 defaultTargets = ["Moser"]
+lintDriver = "batteries/runLinter"
 
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
