@@ -19,20 +19,22 @@ def piApprox : ℚ := 355 / 113
 
 /-- Rational approximation of sin using Taylor series (for small angles) -/
 def sinApprox (angle : ℚ) : ℚ :=
-  -- sin(x) ≈ x - x³/6 + x⁵/120
+  -- sin(x) ≈ x - x³/6 + x⁵/120 - x⁷/5040
   let x := angle
   let x2 := x * x
   let x3 := x2 * x
   let x5 := x3 * x2
-  x - x3 / 6 + x5 / 120
+  let x7 := x5 * x2
+  x - x3 / 6 + x5 / 120 - x7 / 5040
 
 /-- Rational approximation of cos using Taylor series (for small angles) -/
 def cosApprox (angle : ℚ) : ℚ :=
-  -- cos(x) ≈ 1 - x²/2 + x⁴/24
+  -- cos(x) ≈ 1 - x²/2 + x⁴/24 - x⁶/720
   let x := angle
   let x2 := x * x
   let x4 := x2 * x2
-  1 - x2 / 2 + x4 / 24
+  let x6 := x4 * x2
+  1 - x2 / 2 + x4 / 24 - x6 / 720
 
 /-- Generate a grid of rational numbers in a range with given step size -/
 def rationalGrid (min max step : ℚ) : List ℚ :=
