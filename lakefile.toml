@@ -2,6 +2,7 @@ name = "moser"
 version = "0.1.0"
 keywords = ["math"]
 defaultTargets = ["Moser"]
+lintDriver = "batteries/runLinter"
 
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
@@ -9,10 +10,19 @@ relaxedAutoImplicit = false
 weak.linter.mathlibStandardSet = true
 maxSynthPendingDepth = 3
 
+
+[[require]]
+name = "checkdecls"
+git = "https://github.com/PatrickMassot/checkdecls.git"
+
+[[require]]
+name = "«doc-gen4»"
+git = "https://github.com/leanprover/doc-gen4"
+rev = "main"
+
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.27.0"
 
 [[lean_lib]]
 name = "Moser"

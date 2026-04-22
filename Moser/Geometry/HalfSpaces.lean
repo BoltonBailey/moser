@@ -7,7 +7,9 @@ import Moser.Geometry.RationalUtility
 This file defines closed and open half-spaces and lines over rational points.
 -/
 
+/-- A closed half-space in `ℚ²`, given by a basepoint and an inward-pointing normal. -/
 structure ClosedHalfSpace where
+  /-- A point on the boundary line of the half-space. -/
   basepoint : RationalPoint
   /--
   The normal, where if the dot product of this with (p - basepoint) is nonnegative,
@@ -17,7 +19,9 @@ structure ClosedHalfSpace where
   /-- The normal must be nonzero (positive squared length). -/
   normal_pos : 0 < RationalPoint.lengthSq normal
 
+/-- An open half-space in `ℚ²`, given by a basepoint and an inward-pointing normal. -/
 structure OpenHalfSpace where
+  /-- A point on the boundary line of the half-space. -/
   basepoint : RationalPoint
   /--
   The normal, where if the dot product of this with (p - basepoint) is positive,
@@ -27,21 +31,27 @@ structure OpenHalfSpace where
   /-- The normal must be nonzero (positive squared length). -/
   normal_pos : 0 < RationalPoint.lengthSq normal
 
+/-- Decide whether the point `p` lies in the open half-space `h`. -/
 def OpenHalfSpace.contains (h : OpenHalfSpace) (p : RationalPoint) : Bool :=
   RationalPoint.dotProduct h.normal (p - h.basepoint) > 0
 
+/-- The open half-space strictly to the left of the directed segment from `p1` to `p2`. -/
 def RationalPoint.toStrictlyLeft (p1 p2 : RationalPoint) (hne : p1 ≠ p2) : OpenHalfSpace :=
   { basepoint := p1, normal := RationalPoint.rotate90Counterclockwise (p2 - p1),
     normal_pos := by
       rw [RationalPoint.lengthSq_rotate90Counterclockwise]
       exact RationalPoint.lengthSq_pos_of_ne _ (sub_ne_zero.mpr (Ne.symm hne)) }
 
+/-- A line in `ℚ²`, given by a point on the line and a nonzero direction vector. -/
 structure Line where
+  /-- A point lying on the line. -/
   point : RationalPoint
+  /-- A nonzero direction vector for the line. -/
   direction : RationalPoint
   /-- direction must be nonzero -/
   direction_pos : 0 < RationalPoint.lengthSq direction
 
+/-- Decide whether two lines `l1` and `l2` are parallel (cross product of directions is zero). -/
 def Line.parallel (l1 l2 : Line) : Bool :=
   RationalPoint.crossProduct l1.direction l2.direction = 0
 
@@ -55,6 +65,7 @@ def Line.intersection (l1 l2 : Line) : Option RationalPoint :=
     let t := RationalPoint.crossProduct (l2.point - l1.point) l2.direction / d
     some (l1.point + t • l1.direction)
 
+/-- The boundary line of a closed half-space (perpendicular to its normal). -/
 def ClosedHalfSpace.boundaryLine (h : ClosedHalfSpace) : Line :=
   { point := h.basepoint, direction := RationalPoint.rotate90Counterclockwise h.normal,
     direction_pos := by
@@ -68,15 +79,18 @@ Returns none if the lines are parallel (no intersection or infinite intersection
 def ClosedHalfSpace.lineIntersection (h1 h2 : ClosedHalfSpace) : Option RationalPoint :=
   Line.intersection (h1.boundaryLine) (h2.boundaryLine)
 
+/-- Decide whether the point `p` lies in the closed half-space `h`. -/
 def ClosedHalfSpace.contains (h : ClosedHalfSpace) (p : RationalPoint) : Bool :=
   RationalPoint.dotProduct h.normal (p - h.basepoint) ≥ 0
 
+/-- The closed half-space weakly to the left of the directed segment from `p1` to `p2`. -/
 def RationalPoint.toWeaklyLeft (p1 p2 : RationalPoint) (hne : p1 ≠ p2) : ClosedHalfSpace :=
   { basepoint := p1, normal := RationalPoint.rotate90Counterclockwise (p2 - p1),
     normal_pos := by
       rw [RationalPoint.lengthSq_rotate90Counterclockwise]
       exact RationalPoint.lengthSq_pos_of_ne _ (sub_ne_zero.mpr (Ne.symm hne)) }
 
+/-- The closed half-space weakly to the right of the directed segment from `p1` to `p2`. -/
 def RationalPoint.toWeaklyRight (p1 p2 : RationalPoint) (hne : p1 ≠ p2) : ClosedHalfSpace :=
   { basepoint := p1, normal := RationalPoint.rotate90Counterclockwise (p1 - p2),
     normal_pos := by

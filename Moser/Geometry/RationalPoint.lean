@@ -39,6 +39,7 @@ def isStrictlyLeftOf (p p1 p2 : RationalPoint) : Bool :=
 /-- Check if three points are in counterclockwise order -/
 def ccw (p1 p2 p3 : RationalPoint) : Bool := isStrictlyLeftOf p3 p1 p2
 
+/-- Rotate a rational point by 90° counterclockwise about the origin. -/
 def rotate90Counterclockwise (p : RationalPoint) : RationalPoint :=
   ![ -p 1, p 0 ]
 

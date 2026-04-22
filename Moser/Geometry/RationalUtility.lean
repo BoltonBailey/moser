@@ -14,6 +14,7 @@ Construction: Let `N = ⌈(upper+1)/(upper-lower)⌉ + 1` and `m = Nat.sqrt ⌊N
 Return `m / N`. The choice of `N` ensures `N·(√upper − √lower) ≥ 1`, which bounds `m` above by
 `N·√upper`, so `(m/N)² ≤ upper`. The floor construction ensures `(m/N)² > lower`.
 -/
+@[nolint unusedArguments]
 def findRationalWithSquareBetween (lower upper : ℚ) (_h0 : 0 ≤ lower) (_hlt : lower < upper) : ℚ :=
   let d := upper - lower
   let N : ℕ := (⌈(upper + 1) / d⌉).toNat + 1

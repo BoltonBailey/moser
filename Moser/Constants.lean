@@ -86,6 +86,7 @@ example : InitialWorm.area = 1 / 8 := by
   native_decide
 
 
+/-- Half-side length of the square `LocationRange`, scaled from the area threshold. -/
 def offset := areaThreshold * 4
 #eval offset
 
@@ -116,6 +117,7 @@ def LocationRange : ConvexPolygon where
   nodup := by native_decide
   vertices_extremeRationalPoints := by native_decide
 
+/-- A rational upper bound on `√2`, accurate to 15 decimal places. -/
 def upperBoundSqrtTwo : ℚ  := .divInt 1414213562373095 1000000000000000
 
 /--
