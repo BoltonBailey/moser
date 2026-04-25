@@ -278,6 +278,118 @@ def IsCCWChain : List RationalPoint → Prop
 @[simp] lemma IsCCWChain_singleton (p : RationalPoint) : IsCCWChain [p] := trivial
 @[simp] lemma IsCCWChain_pair (p q : RationalPoint) : IsCCWChain [p, q] := trivial
 
+/-- Dropping the last element of a CCW chain still gives a CCW chain. -/
+lemma IsCCWChain.dropLast : ∀ {L : List RationalPoint},
+    IsCCWChain L → IsCCWChain L.dropLast
+  | [], _ => trivial
+  | [_], _ => trivial
+  | [_, _], _ => trivial
+  | [_, _, _], _ => trivial
+  | a :: b :: c :: d :: rest, h => by
+      obtain ⟨h1, h2⟩ := h
+      have ih : IsCCWChain (b :: c :: d :: rest).dropLast :=
+        IsCCWChain.dropLast h2
+      simp only [List.dropLast_cons_cons] at ih ⊢
+      exact ⟨h1, ih⟩
+
+/-- Appending an element after a chain of length ≤ 1 still gives a chain. -/
+lemma IsCCWChain_append_singleton_of_short :
+    ∀ {L : List RationalPoint}, L.length ≤ 1 → ∀ x, IsCCWChain (L ++ [x])
+  | [], _, _ => trivial
+  | [_], _, _ => trivial
+  | _ :: _ :: _, h, _ => by simp at h
+
+/--
+Appending an element to a chain whose last two elements are `a, b`
+preserves the chain when `ccw a b x = true`.
+-/
+lemma IsCCWChain_append_cons_cons :
+    ∀ {L : List RationalPoint} {a b c : RationalPoint},
+      IsCCWChain (L ++ [a, b]) → RationalPoint.ccw a b c = true →
+      IsCCWChain (L ++ [a, b, c])
+  | [], a, b, c, _, h_turn => ⟨h_turn, trivial⟩
+  | [_], a, b, c, hL, h_turn => by
+      obtain ⟨h1, _⟩ := hL
+      exact ⟨h1, h_turn, trivial⟩
+  | x :: y :: rest, a, b, c, hL, h_turn => by
+      have hL' : IsCCWChain ((x :: y :: rest) ++ [a, b]) := hL
+      simp only [List.cons_append] at hL'
+      obtain ⟨h1, h2⟩ := hL'
+      have h2' : IsCCWChain ((y :: rest) ++ [a, b]) := by
+        simpa using h2
+      have ih := IsCCWChain_append_cons_cons h2' h_turn
+      refine ⟨h1, ?_⟩
+      simpa using ih
+
+/--
+If `acc.reverse` is a CCW chain, then so is `(grahamScanStep acc p).reverse`.
+
+`grahamScanStep` pushes `p` only when it produces a strict left turn,
+otherwise it pops and recurses, so the chain invariant is preserved.
+-/
+lemma grahamScanStep_chain (acc : List RationalPoint) (p : RationalPoint) :
+    IsCCWChain acc.reverse → IsCCWChain (grahamScanStep acc p).reverse := by
+  intro h
+  match acc with
+  | [] =>
+      simp [grahamScanStep]
+  | [q] =>
+      simp [grahamScanStep]
+  | q :: r :: rest => by
+      unfold grahamScanStep
+      split_ifs with h_ccw
+      · -- keep branch: result is p :: q :: r :: rest
+        -- reverse is (r :: rest).reverse ++ [q, p]
+        -- we know: (q :: r :: rest).reverse = (r :: rest).reverse ++ [q]
+        -- so h says (r :: rest).reverse ++ [q] is a chain.
+        -- Need: (r :: rest).reverse ++ [q, p] is a chain.
+        have h_rev : (p :: q :: r :: rest).reverse =
+            (r :: rest).reverse ++ [q, p] := by
+          simp [List.reverse_cons]
+        rw [h_rev]
+        have h_orig : (q :: r :: rest).reverse =
+            (r :: rest).reverse ++ [q] := by
+          simp [List.reverse_cons]
+        rw [h_orig] at h
+        -- We now do cases on (r :: rest).reverse to extract last two elements
+        -- (r :: rest).reverse has at least one element.
+        match hrr : (r :: rest).reverse with
+        | [] => simp at hrr
+        | [x] =>
+          -- Then `r :: rest = [r]` so `rest = []`
+          rw [hrr] at h
+          -- h : IsCCWChain ([x] ++ [q]) = IsCCWChain [x, q]
+          -- We need IsCCWChain ([x] ++ [q, p]) = IsCCWChain [x, q, p]
+          -- which is ccw x q p ∧ True. We need ccw x q p.
+          -- Note: rest = [], so r :: rest = [r], reverse = [r], hence x = r.
+          have hx : x = r := by
+            have := hrr
+            cases rest with
+            | nil => simpa using this
+            | cons _ _ => simp [List.reverse_cons] at this
+          subst hx
+          -- now need IsCCWChain [r, q, p]
+          refine ⟨?_, trivial⟩
+          exact h_ccw
+        | x :: y :: tail =>
+          -- (r :: rest).reverse = x :: y :: tail
+          -- The last element of (r :: rest).reverse is r... actually we need
+          -- the last two elements. Hmm. Let me reverse our thinking.
+          -- (r :: rest).reverse ends with `r`. So if (r :: rest).reverse = x :: y :: tail,
+          -- then `tail` could be empty or not. Let's think about what the
+          -- last two are.
+          -- Actually, let me just think of it differently.
+          -- (r :: rest).reverse = rest.reverse ++ [r]
+          -- We need: IsCCWChain ((rest.reverse ++ [r]) ++ [q, p]) given
+          -- IsCCWChain ((rest.reverse ++ [r]) ++ [q]).
+          rw [hrr] at h
+          -- We use IsCCWChain_append_cons_cons. Take L := tail's prefix to get
+          -- final two elements. Actually we have x :: y :: tail = M ++ [a, b]
+          -- where (a, b) are the last two. Easier: do it by induction with our
+          -- lemma. Let me use the original form.
+          sorry
+  termination_by acc.length
+
 /--
 Reading the stack output of `lowerHullScan` from tail to head (i.e. arrival order)
 yields a CCW chain.
