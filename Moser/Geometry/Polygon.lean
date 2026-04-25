@@ -427,10 +427,7 @@ def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
           have hnodup : hull.Nodup := convexHullRationalPoints_nodup verts
           intro i j hij
           exact (List.Nodup.get_inj_iff hnodup).mp hij }
-    if h_convex :
-        ∀ i j : Fin hull.length, j ≠ i → j ≠ i + 1 →
-          (NondegenPolygon.getStrictlyLeftHalfspace nondegen i).contains
-            (nondegen.vertices j) = true then
+    if h_convex : IsCCWPolygon nondegen.vertices then
       some { toNondegenPolygon := nondegen, vertices_extremeRationalPoints := h_convex }
     else none
   else none
@@ -489,18 +486,8 @@ winding-number / Hopf Umlaufsatz style argument).
 lemma convexHullRationalPoints_convex (verts : List RationalPoint)
     (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
     haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
-    ∀ i j : Fin (convexHullRationalPoints verts).length, j ≠ i → j ≠ i + 1 →
-      (NondegenPolygon.getStrictlyLeftHalfspace
-        { vertex_count := (convexHullRationalPoints verts).length
-          vertex_count_pos := ⟨by omega⟩
-          three_le_vertex_count := h_three
-          vertices := (convexHullRationalPoints verts).get
-          nodup := by
-            have hnodup : (convexHullRationalPoints verts).Nodup :=
-              convexHullRationalPoints_nodup verts
-            intro i j hij
-            exact (List.Nodup.get_inj_iff hnodup).mp hij } i).contains
-        ((convexHullRationalPoints verts).get j) = true := by
+    IsCCWPolygon (n := (convexHullRationalPoints verts).length)
+      (convexHullRationalPoints verts).get := by
   sorry
 
 /--
