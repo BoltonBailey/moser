@@ -219,7 +219,7 @@ lemma convexHullFromSorted_nodup {sorted : List RationalPoint} (h : sorted.Nodup
     unfold convexHullFromSorted
     set L := p :: q :: rest with hL
     have hL_nodup : L.Nodup := h
-    have hL_rev_nodup : L.reverse.Nodup := hL_nodup.reverse
+    have hL_rev_nodup : L.reverse.Nodup := List.nodup_reverse.mpr hL_nodup
     -- lower = (lowerHullScan L).reverse.dropLast
     have lower_sub_rev : (lowerHullScan L).Sublist L.reverse := lowerHullScan_sublist L
     have lower_rev_sub : (lowerHullScan L).reverse.Sublist L.reverse.reverse :=
@@ -245,8 +245,9 @@ lemma convexHullFromSorted_nodup {sorted : List RationalPoint} (h : sorted.Nodup
     intro x hx_lower hx_filt
     rw [List.mem_filter] at hx_filt
     obtain ⟨_, hx_not⟩ := hx_filt
-    simp at hx_not
-    exact hx_not hx_lower
+    -- hx_not : decide (x ∉ lower) = true
+    have : x ∉ lower := of_decide_eq_true hx_not
+    exact this hx_lower
 
 lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
     (convexHullRationalPoints points).Nodup := by
