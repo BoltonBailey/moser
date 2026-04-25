@@ -104,7 +104,23 @@ Should return a list of vertices such that:
 - The returned vertices are extreme points of the convex hull
   (no vertex is a convex combination of others).
 -/
-def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint := sorry
+def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint :=
+  -- Lexicographic order on (x, y); consecutive duplicates are absorbed by `grahamScanStep`,
+  -- since `RationalPoint.ccw` is strict and returns `false` whenever two arguments coincide.
+  let lex (p q : RationalPoint) : Bool :=
+    decide (p 0 < q 0) || (decide (p 0 = q 0) && decide (p 1 ≤ q 1))
+  let sorted := points.mergeSort lex
+  match sorted with
+  | [] => []
+  | [p] => [p]
+  | _ =>
+    -- Andrew's monotone chain: scanning left-to-right with `grahamScanStep` keeps strict
+    -- left turns, producing the lower hull (top of stack = rightmost). Reversing the input
+    -- yields the upper hull. Each list is reversed so it runs leftmost→rightmost (resp.
+    -- rightmost→leftmost); dropping the last element of each removes the shared endpoints.
+    let lower := sorted.foldl grahamScanStep []
+    let upper := sorted.reverse.foldl grahamScanStep []
+    lower.reverse.dropLast ++ upper.reverse.dropLast
 
 lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
     (convexHullRationalPoints points).Nodup := by
