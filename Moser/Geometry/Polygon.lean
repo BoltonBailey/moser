@@ -547,9 +547,12 @@ the last two elements together with the first form a strict left turn.
 -/
 lemma convexHullRationalPoints_wrap_end (verts : List RationalPoint)
     (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
-    let H := convexHullRationalPoints verts
-    RationalPoint.ccw (H.get ⟨H.length - 2, by omega⟩)
-      (H.get ⟨H.length - 1, by omega⟩) (H.get ⟨0, by omega⟩) = true := by
+    RationalPoint.ccw
+      ((convexHullRationalPoints verts).get
+        ⟨(convexHullRationalPoints verts).length - 2, by omega⟩)
+      ((convexHullRationalPoints verts).get
+        ⟨(convexHullRationalPoints verts).length - 1, by omega⟩)
+      ((convexHullRationalPoints verts).get ⟨0, by omega⟩) = true := by
   sorry
 
 /--
@@ -558,9 +561,11 @@ the last element together with the first two forms a strict left turn.
 -/
 lemma convexHullRationalPoints_wrap_start (verts : List RationalPoint)
     (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
-    let H := convexHullRationalPoints verts
-    RationalPoint.ccw (H.get ⟨H.length - 1, by omega⟩)
-      (H.get ⟨0, by omega⟩) (H.get ⟨1, by omega⟩) = true := by
+    RationalPoint.ccw
+      ((convexHullRationalPoints verts).get
+        ⟨(convexHullRationalPoints verts).length - 1, by omega⟩)
+      ((convexHullRationalPoints verts).get ⟨0, by omega⟩)
+      ((convexHullRationalPoints verts).get ⟨1, by omega⟩) = true := by
   sorry
 
 /--
