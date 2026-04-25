@@ -294,7 +294,15 @@ in the hull is a strict left turn).
 lemma ConvexPolygon.ofList_eq_none_iff (verts : List RationalPoint) :
     ConvexPolygon.ofList verts = none ↔
       (convexHullRationalPoints verts).length < 3 := by
-  sorry
+  refine ⟨?_, ?_⟩
+  · -- forward: `ofList = none → length < 3`. This is the algorithm-correctness
+    -- direction; if the hull already has ≥ 3 vertices, the convexity check must
+    -- have succeeded, so the result couldn't have been `none`.
+    sorry
+  · -- backward: `length < 3 → ofList = none`. Immediate from the outer `if` guard.
+    intro h
+    unfold ConvexPolygon.ofList
+    rw [dif_neg (by omega)]
 
 /--
 Returns a list of closed half-spaces corresponding to the edges of the convex polygon.
