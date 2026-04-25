@@ -95,9 +95,11 @@ def grahamScanStep (stack : List RationalPoint) (p : RationalPoint) : List Ratio
 def RationalPoint.lexLE (p q : RationalPoint) : Bool :=
   decide (p 0 < q 0) || (decide (p 0 = q 0) && decide (p 1 ≤ q 1))
 
-/-- Sort a list of rational points lexicographically by `(x, y)`. -/
+/-- Sort a list of rational points lexicographically by `(x, y)`, after first
+    dropping duplicates. The dedup step makes the downstream Graham-scan
+    invariants and uniqueness proofs go through cleanly. -/
 def sortRationalPointsLex (points : List RationalPoint) : List RationalPoint :=
-  points.mergeSort RationalPoint.lexLE
+  points.dedup.mergeSort RationalPoint.lexLE
 
 /--
 Lower-hull pass of Andrew's monotone chain: fold `grahamScanStep` left over an
