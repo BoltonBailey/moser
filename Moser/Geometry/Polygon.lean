@@ -397,7 +397,8 @@ the reversed sorted list, so the resulting stack also has strict left turns.
 -/
 lemma upperHullScan_reverse_isCCWChain (sorted : List RationalPoint) :
     IsCCWChain (upperHullScan sorted).reverse := by
-  sorry
+  unfold upperHullScan
+  exact foldl_grahamScanStep_chain sorted.reverse [] (by simp)
 
 /--
 Construct a ConvexPolygon from a list of points by removing duplicates
