@@ -282,6 +282,40 @@ def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
   else none
 
 /--
+Algorithm-correctness statement for `convexHullRationalPoints`: when the hull has
+at least three vertices, every other vertex lies strictly left of every directed
+edge of the hull.
+
+This is the heart of the correctness of the Graham-scan / monotone-chain
+implementation in `convexHullRationalPoints`. A full proof needs:
+1. Induction on `lowerHullScan` / `upperHullScan` showing every consecutive
+   triple in the resulting stack is a strict left turn.
+2. A junction argument at the leftmost / rightmost meeting points of the lower
+   and upper hulls.
+3. The fact that all input points lie weakly inside the hull, so non-edge hull
+   vertices are strictly inside any edge's open half-space.
+
+For now we record this as a structural lemma and leave its proof as `sorry`;
+once it is closed, `ConvexPolygon.ofList_eq_none_iff` follows immediately.
+-/
+lemma convexHullRationalPoints_convex (verts : List RationalPoint)
+    (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
+    haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
+    ∀ i j : Fin (convexHullRationalPoints verts).length, j ≠ i → j ≠ i + 1 →
+      (NondegenPolygon.getStrictlyLeftHalfspace
+        { vertex_count := (convexHullRationalPoints verts).length
+          vertex_count_pos := ⟨by omega⟩
+          three_le_vertex_count := h_three
+          vertices := (convexHullRationalPoints verts).get
+          nodup := by
+            have hnodup : (convexHullRationalPoints verts).Nodup :=
+              convexHullRationalPoints_nodup verts
+            intro i j hij
+            exact (List.Nodup.get_inj_iff hnodup).mp hij } i).contains
+        ((convexHullRationalPoints verts).get j) = true := by
+  sorry
+
+/--
 `ConvexPolygon.ofList` returns `none` exactly when the input has fewer than three
 extreme points. Equivalently, whenever the convex hull has at least three vertices,
 the convexity invariant `vertices_extremeRationalPoints` is automatically satisfied
@@ -298,7 +332,14 @@ lemma ConvexPolygon.ofList_eq_none_iff (verts : List RationalPoint) :
   · -- forward: `ofList = none → length < 3`. This is the algorithm-correctness
     -- direction; if the hull already has ≥ 3 vertices, the convexity check must
     -- have succeeded, so the result couldn't have been `none`.
-    sorry
+    intro h
+    by_contra hlen
+    have hlen' : 3 ≤ (convexHullRationalPoints verts).length := Nat.le_of_not_lt hlen
+    unfold ConvexPolygon.ofList at h
+    rw [dif_pos hlen'] at h
+    have h_convex := convexHullRationalPoints_convex verts hlen'
+    rw [dif_pos h_convex] at h
+    exact Option.some_ne_none _ h
   · -- backward: `length < 3 → ofList = none`. Immediate from the outer `if` guard.
     intro h
     unfold ConvexPolygon.ofList
