@@ -592,10 +592,10 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
   -- (b) i.val = length - 2: wrap_end.
   -- (c) i.val = length - 1: wrap_start.
   have h_one_val : ((1 : Fin (convexHullRationalPoints verts).length) : ℕ) = 1 := by
-    show 1 % (convexHullRationalPoints verts).length = 1
+    change 1 % (convexHullRationalPoints verts).length = 1
     exact Nat.mod_eq_of_lt (by omega)
   have h_two_val : ((2 : Fin (convexHullRationalPoints verts).length) : ℕ) = 2 := by
-    show 2 % (convexHullRationalPoints verts).length = 2
+    change 2 % (convexHullRationalPoints verts).length = 2
     exact Nat.mod_eq_of_lt (by omega)
   have hi_lt : i.val < (convexHullRationalPoints verts).length := i.isLt
   rcases lt_or_ge (i.val + 2) (convexHullRationalPoints verts).length with h_lt | h_ge
@@ -651,11 +651,15 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
         rw [h_sum, Nat.add_mod_left]
         exact Nat.mod_eq_of_lt (by omega)
       have h_ws := convexHullRationalPoints_wrap_start verts h_three
-      have ei : i = ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext h_eq
       have e1 : i + 1 = ⟨0, by omega⟩ := Fin.ext hi1_val
       have e2 : i + 2 = ⟨1, by omega⟩ := Fin.ext hi2_val
       rw [e1, e2]
-      subst ei
+      have h_get_i : (convexHullRationalPoints verts).get i =
+          (convexHullRationalPoints verts).get
+            ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := by
+        congr 1
+        exact Fin.ext h_eq
+      rw [h_get_i]
       exact h_ws
 
 /--
