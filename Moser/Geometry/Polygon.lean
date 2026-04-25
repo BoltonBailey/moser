@@ -69,6 +69,22 @@ instance {n : ℕ} [NeZero n] (vertices : Fin n → RationalPoint) :
   inferInstanceAs (Decidable (∀ _ _ : Fin n, _ → _ → _))
 
 /--
+The cyclic CCW chain condition: every consecutive triple of vertices `(vᵢ, vᵢ₊₁, vᵢ₊₂)`
+(with cyclic indexing) is a strict counterclockwise turn.
+
+This is strictly weaker than `IsCCWPolygon`: it only constrains immediately consecutive
+triples, not arbitrary "vᵢ, vᵢ₊₁, vⱼ" pairs. Equivalence to `IsCCWPolygon` for distinct
+vertices is the content of `cyclicCCWChain_implies_IsCCWPolygon`.
+-/
+def IsCyclicCCWChain {n : ℕ} [NeZero n] (vertices : Fin n → RationalPoint) : Prop :=
+  ∀ i : Fin n,
+    RationalPoint.ccw (vertices i) (vertices (i + 1)) (vertices (i + 2)) = true
+
+instance {n : ℕ} [NeZero n] (vertices : Fin n → RationalPoint) :
+    Decidable (IsCyclicCCWChain vertices) :=
+  inferInstanceAs (Decidable (∀ _ : Fin n, _))
+
+/--
 A convex polygon.
 
 Convexity is enforced by `IsCCWPolygon vertices`: every edge `vᵢ → vᵢ₊₁` has all
