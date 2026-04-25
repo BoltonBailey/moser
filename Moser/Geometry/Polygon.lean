@@ -257,6 +257,49 @@ lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
 --   sorry
 
 /--
+Predicate saying every consecutive triple in a list is a strict counterclockwise turn.
+
+Reading the list head-to-tail as `p₀, p₁, p₂, …`, we require `ccw p₀ p₁ p₂ = true`,
+i.e. `p₂` is strictly left of the directed segment `p₀ → p₁`. Equivalently, the polyline
+formed by the list always turns counterclockwise at every interior vertex.
+
+This is the natural invariant maintained by `grahamScanStep` when reading the stack in
+arrival order.
+-/
+def IsCCWChain : List RationalPoint → Prop
+  | [] => True
+  | [_] => True
+  | [_, _] => True
+  | p₀ :: p₁ :: p₂ :: rest =>
+      RationalPoint.ccw p₀ p₁ p₂ = true ∧ IsCCWChain (p₁ :: p₂ :: rest)
+
+/-- The chain invariant for the empty / singleton / pair lists is automatic. -/
+@[simp] lemma IsCCWChain_nil : IsCCWChain [] := trivial
+@[simp] lemma IsCCWChain_singleton (p : RationalPoint) : IsCCWChain [p] := trivial
+@[simp] lemma IsCCWChain_pair (p q : RationalPoint) : IsCCWChain [p, q] := trivial
+
+/--
+Reading the stack output of `lowerHullScan` from tail to head (i.e. arrival order)
+yields a CCW chain.
+
+Because `grahamScanStep` only pushes a new point when the turn at the previous head
+is counterclockwise, the reversed stack is a sequence of strict left turns.
+-/
+lemma lowerHullScan_reverse_isCCWChain (sorted : List RationalPoint) :
+    IsCCWChain (lowerHullScan sorted).reverse := by
+  sorry
+
+/--
+Reading the stack output of `upperHullScan` from tail to head yields a CCW chain.
+
+Symmetric to `lowerHullScan_reverse_isCCWChain`: the upper hull is built by scanning
+the reversed sorted list, so the resulting stack also has strict left turns.
+-/
+lemma upperHullScan_reverse_isCCWChain (sorted : List RationalPoint) :
+    IsCCWChain (upperHullScan sorted).reverse := by
+  sorry
+
+/--
 Construct a ConvexPolygon from a list of points by removing duplicates
     and keeping only extreme points of the convex hull.
     returns none if there are fewer than 3 extreme points. -/
