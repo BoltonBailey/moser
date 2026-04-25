@@ -471,40 +471,85 @@ lemma getStrictlyLeftHalfspace_contains_eq_ccw
   ring
 
 /--
+The convex hull algorithm produces a list whose cyclic consecutive triples are all
+strict counterclockwise turns.
+
+This combines the chain invariants `lowerHullScan_reverse_isCCWChain` and
+`upperHullScan_reverse_isCCWChain` with two further facts:
+
+* Junction CCW: the chain extends across the seam where the lower hull meets the
+  upper hull (at the leftmost and rightmost x-coordinates).
+* Cyclic closure: the wrap-around triples are also strict left turns.
+
+Pieces that look helpful for the proof and don't yet exist:
+
+* `IsCCWChain_iff_get` — translate `IsCCWChain L` into `∀ i (h : i + 2 < L.length),
+  ccw L[i] L[i+1] L[i+2] = true`. Lets us index into the lower / upper chains.
+* A characterization of `convexHullFromSorted sorted` for sorted, nodup, length ≥ 2
+  inputs as the concatenation of (untruncated) `lowerHullScan sorted` and
+  `upperHullScan sorted` modulo shared endpoints, plus a guarantee that the
+  filter against duplicates removes nothing in the strictly-convex case.
+* Lex-sorting / dedup facts ensuring the leftmost and rightmost x-coordinates are
+  achieved exactly once each in the hull output.
+-/
+lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
+    (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
+    haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
+    IsCyclicCCWChain (n := (convexHullRationalPoints verts).length)
+      (convexHullRationalPoints verts).get := by
+  sorry
+
+/--
+Classical geometric theorem: a list of distinct points whose every cyclic
+consecutive triple is a strict counterclockwise turn is strictly convex —
+every non-adjacent vertex lies strictly to the left of every edge.
+
+For `n = 3` this is immediate (the only "non-adjacent" `j` is `i + 2`, which is
+exactly the chain hypothesis).
+
+For `n ≥ 4` the standard proof inducts on the polygon: removing one vertex
+preserves strict cyclic CCW because the removed vertex was strictly left of
+the new "shortcut" edge. Combined with simplicity (no edge crossings), this
+implies strict convexity.
+
+Sub-lemmas that look helpful:
+
+* `IsCyclicCCWChain.removeVertex` — deleting a vertex preserves strict cyclic
+  CCW chain on the remaining `n - 1` vertices.
+* A simplicity lemma: a strict cyclic CCW chain has no crossing edges.
+* `IsCyclicCCWChain.injective` — strict cyclic CCW with `n ≥ 3` forces vertex
+  injectivity (likely already implied by `nodup`, so just plumbed through).
+-/
+lemma cyclicCCWChain_implies_isCCWPolygon
+    {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
+    (vertices : Fin n → RationalPoint)
+    (hinj : Function.Injective vertices)
+    (h_chain : IsCyclicCCWChain vertices) :
+    IsCCWPolygon vertices := by
+  sorry
+
+/--
 Algorithm-correctness statement for `convexHullRationalPoints`: when the hull has
 at least three vertices, every other vertex lies strictly left of every directed
 edge of the hull.
 
-Status of the proof:
-
-* The Graham-scan invariant — every consecutive triple (in arrival order) of
-  `lowerHullScan` and `upperHullScan` is a strict left turn — is established by
-  `lowerHullScan_reverse_isCCWChain` and `upperHullScan_reverse_isCCWChain`,
-  via the chain-preservation lemmas `grahamScanStep_chain` and
-  `foldl_grahamScanStep_chain`.
-* The half-space membership condition on the LHS reduces to a `RationalPoint.ccw`
-  condition via `getStrictlyLeftHalfspace_contains_eq_ccw`.
-
-What still needs to be assembled:
-
-1. Junction CCW: the chain extends across the seam where the lower hull meets
-   the upper hull (at the leftmost and rightmost x-coordinates).
-2. Cyclic closure: the wrap-around triples `(v_{n-1}, v_0, v_1)` and
-   `(v_{n-2}, v_{n-1}, v_0)` are also strict left turns.
-3. The classical geometric theorem: a list of distinct points whose every
-   cyclic consecutive triple is a strict left turn is strictly convex — every
-   non-adjacent vertex lies strictly inside the open half-space of every edge.
-
-(3) is the substantive geometric content that does not follow purely from the
-chain invariant and needs a separate proof (induction on the polygon, or a
-winding-number / Hopf Umlaufsatz style argument).
+Now obtained as a one-liner: combine the cyclic chain (algorithmic content,
+`convexHullRationalPoints_isCyclicCCWChain`) with the geometric content
+(`cyclicCCWChain_implies_isCCWPolygon`).
 -/
 lemma convexHullRationalPoints_convex (verts : List RationalPoint)
     (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
     haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
     IsCCWPolygon (n := (convexHullRationalPoints verts).length)
       (convexHullRationalPoints verts).get := by
-  sorry
+  haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
+  refine cyclicCCWChain_implies_isCCWPolygon h_three _ ?_ ?_
+  · -- injectivity of `(convexHullRationalPoints verts).get` follows from `nodup`
+    have hnodup : (convexHullRationalPoints verts).Nodup :=
+      convexHullRationalPoints_nodup verts
+    intro i j hij
+    exact (List.Nodup.get_inj_iff hnodup).mp hij
+  · exact convexHullRationalPoints_isCyclicCCWChain verts h_three
 
 /--
 `ConvexPolygon.ofList` returns `none` exactly when the input has fewer than three
