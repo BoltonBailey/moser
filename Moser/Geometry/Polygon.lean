@@ -443,7 +443,8 @@ lemma getStrictlyLeftHalfspace_contains_eq_ccw
   unfold RationalPoint.dotProduct RationalPoint.crossProduct
     RationalPoint.rotate90Counterclockwise
   congr 1
-  simp [Pi.sub_apply, Matrix.cons_val_zero, Matrix.cons_val_one]
+  simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Pi.sub_apply]
+  congr 1
   ring
 
 /--
