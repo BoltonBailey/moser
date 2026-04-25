@@ -287,18 +287,29 @@ lemma IsCCWChain_append_cons_cons :
       IsCCWChain (L ++ [a, b]) → RationalPoint.ccw a b c = true →
       IsCCWChain (L ++ [a, b, c])
   | [], _, _, _, _, h_turn => ⟨h_turn, trivial⟩
-  | [_], _, _, _, hL, h_turn => by
-      obtain ⟨h1, _⟩ := hL
+  | [x], a, b, c, hL, h_turn => by
+      -- IsCCWChain [x, a, b] = ⟨ccw x a b, IsCCWChain [a, b]⟩
+      have h1 : RationalPoint.ccw x a b = true := hL.1
+      -- IsCCWChain [x, a, b, c] = ⟨ccw x a b, IsCCWChain [a, b, c]⟩
       exact ⟨h1, h_turn, trivial⟩
-  | x :: y :: rest, a, b, c, hL, h_turn => by
-      have hL' : IsCCWChain ((x :: y :: rest) ++ [a, b]) := hL
-      simp only [List.cons_append] at hL'
-      obtain ⟨h1, h2⟩ := hL'
-      have h2' : IsCCWChain ((y :: rest) ++ [a, b]) := by
+  | [x, y], a, b, c, hL, h_turn => by
+      -- IsCCWChain [x, y, a, b]
+      obtain ⟨h1, h2, _⟩ := hL
+      exact ⟨h1, h2, h_turn, trivial⟩
+  | x :: y :: z :: rest, a, b, c, hL, h_turn => by
+      -- (x :: y :: z :: rest) ++ [a, b] = x :: y :: (z :: rest ++ [a, b])
+      -- IsCCWChain hypothesis gives ccw x y z' and IsCCWChain (y :: z' :: ...)
+      have hL' : IsCCWChain (x :: y :: (z :: rest ++ [a, b])) := by
+        simpa using hL
+      have h1 : RationalPoint.ccw x y z = true := hL'.1
+      have h2 : IsCCWChain (y :: (z :: rest ++ [a, b])) := hL'.2
+      have h2' : IsCCWChain ((y :: z :: rest) ++ [a, b]) := by
         simpa using h2
       have ih := IsCCWChain_append_cons_cons h2' h_turn
-      refine ⟨h1, ?_⟩
-      simpa using ih
+      have ih' : IsCCWChain (y :: (z :: rest ++ [a, b, c])) := by
+        simpa using ih
+      show IsCCWChain (x :: y :: (z :: rest ++ [a, b, c]))
+      exact ⟨h1, ih'⟩
 
 /-- Dropping the last element of a CCW chain still gives a CCW chain. -/
 lemma IsCCWChain.dropLast : ∀ {L : List RationalPoint},
