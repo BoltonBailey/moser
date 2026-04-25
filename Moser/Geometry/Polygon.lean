@@ -263,6 +263,7 @@ Construct a ConvexPolygon from a list of points by removing duplicates
 def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
   let hull := convexHullRationalPoints verts
   if h_three : 3 ≤ hull.length then
+    haveI : NeZero hull.length := ⟨by omega⟩
     let nondegen : NondegenPolygon :=
       { vertex_count := hull.length
         vertex_count_pos := ⟨by omega⟩
@@ -271,7 +272,7 @@ def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
         nodup := by
           have hnodup : hull.Nodup := convexHullRationalPoints_nodup verts
           intro i j hij
-          exact Fin.ext (List.Nodup.get_inj_iff hnodup |>.mp hij) }
+          exact (List.Nodup.get_inj_iff hnodup).mp hij }
     if h_convex :
         ∀ i j : Fin hull.length, j ≠ i → j ≠ i + 1 →
           (NondegenPolygon.getStrictlyLeftHalfspace nondegen i).contains
