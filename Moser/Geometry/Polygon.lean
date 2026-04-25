@@ -627,12 +627,16 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
             (convexHullRationalPoints verts).length := by omega
         rw [h_sum, Nat.mod_self]
       have h_we := convexHullRationalPoints_wrap_end verts h_three
-      have ei : i = ⟨(convexHullRationalPoints verts).length - 2, by omega⟩ := Fin.ext h_eq
       have e1 : i + 1 =
           ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext hi1_val
       have e2 : i + 2 = ⟨0, by omega⟩ := Fin.ext hi2_val
       rw [e1, e2]
-      subst ei
+      have h_get_i : (convexHullRationalPoints verts).get i =
+          (convexHullRationalPoints verts).get
+            ⟨(convexHullRationalPoints verts).length - 2, by omega⟩ := by
+        congr 1
+        exact Fin.ext h_eq
+      rw [h_get_i]
       exact h_we
     · -- Case i.val = length - 1: triple is (H[length-1], H[0], H[1]).
       have hi1_val : (i + 1).val = 0 := by
