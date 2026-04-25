@@ -158,9 +158,98 @@ returns `false` whenever two of its arguments coincide.
 def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint :=
   convexHullFromSorted (sortRationalPointsLex points)
 
+/-- Each step of the Graham scan returns a sublist of the stack with the new point pushed. -/
+lemma grahamScanStep_sublist (stack : List RationalPoint) (p : RationalPoint) :
+    (grahamScanStep stack p).Sublist (p :: stack) := by
+  match stack with
+  | [] => simp [grahamScanStep]
+  | [q] => simp [grahamScanStep]
+  | q :: r :: rest =>
+    unfold grahamScanStep
+    split_ifs with h
+    · exact List.Sublist.refl _
+    · have ih := grahamScanStep_sublist (r :: rest) p
+      refine ih.trans ?_
+      exact (List.sublist_cons_self q (r :: rest)).cons_cons p
+termination_by stack.length
+
+/-- Folding `grahamScanStep` over a list yields a sublist of the reversed input prepended to
+    the accumulator. -/
+lemma foldl_grahamScanStep_sublist (l acc : List RationalPoint) :
+    (l.foldl grahamScanStep acc).Sublist (l.reverse ++ acc) := by
+  induction l generalizing acc with
+  | nil => simp
+  | cons x xs ih =>
+    simp only [List.foldl_cons, List.reverse_cons, List.append_assoc, List.cons_append,
+      List.nil_append]
+    have step : (grahamScanStep acc x).Sublist (x :: acc) := grahamScanStep_sublist acc x
+    have ih_inst := ih (grahamScanStep acc x)
+    refine ih_inst.trans ?_
+    exact List.Sublist.append_left step xs.reverse
+
+/-- The lower-hull scan output is a sublist of the reversed input. -/
+lemma lowerHullScan_sublist (sorted : List RationalPoint) :
+    (lowerHullScan sorted).Sublist sorted.reverse := by
+  unfold lowerHullScan
+  have := foldl_grahamScanStep_sublist sorted []
+  simpa using this
+
+/-- The upper-hull scan output is a sublist of the input. -/
+lemma upperHullScan_sublist (sorted : List RationalPoint) :
+    (upperHullScan sorted).Sublist sorted := by
+  unfold upperHullScan
+  have h := foldl_grahamScanStep_sublist sorted.reverse []
+  rw [List.reverse_reverse] at h
+  simpa using h
+
+/-- The lex-sorted (deduplicated) list has no duplicates. -/
+lemma sortRationalPointsLex_nodup (points : List RationalPoint) :
+    (sortRationalPointsLex points).Nodup := by
+  unfold sortRationalPointsLex
+  have hperm : (points.dedup.mergeSort RationalPoint.lexLE).Perm points.dedup :=
+    List.mergeSort_perm points.dedup RationalPoint.lexLE
+  exact hperm.symm.nodup (List.nodup_dedup points)
+
+/-- Stitching the two hull scans preserves no-duplicates. -/
+lemma convexHullFromSorted_nodup {sorted : List RationalPoint} (h : sorted.Nodup) :
+    (convexHullFromSorted sorted).Nodup := by
+  match sorted, h with
+  | [], _ => simp [convexHullFromSorted]
+  | [p], _ => simp [convexHullFromSorted]
+  | p :: q :: rest, h =>
+    unfold convexHullFromSorted
+    set L := p :: q :: rest with hL
+    have hL_nodup : L.Nodup := h
+    have hL_rev_nodup : L.reverse.Nodup := List.nodup_reverse.mpr hL_nodup
+    have lower_sub_rev : (lowerHullScan L).Sublist L.reverse := lowerHullScan_sublist L
+    have lower_rev_sub : (lowerHullScan L).reverse.Sublist L.reverse.reverse :=
+      lower_sub_rev.reverse
+    have lower_rev_sub' : (lowerHullScan L).reverse.Sublist L := by
+      rw [List.reverse_reverse] at lower_rev_sub; exact lower_rev_sub
+    have lower_dropLast_sub : (lowerHullScan L).reverse.dropLast.Sublist L :=
+      (List.dropLast_sublist _).trans lower_rev_sub'
+    have lower_nodup : ((lowerHullScan L).reverse.dropLast).Nodup :=
+      lower_dropLast_sub.nodup hL_nodup
+    have upper_sub : (upperHullScan L).Sublist L := upperHullScan_sublist L
+    have upper_rev_sub : (upperHullScan L).reverse.Sublist L.reverse := upper_sub.reverse
+    have upper_dropLast_sub : (upperHullScan L).reverse.dropLast.Sublist L.reverse :=
+      (List.dropLast_sublist _).trans upper_rev_sub
+    have upper_nodup : ((upperHullScan L).reverse.dropLast).Nodup :=
+      upper_dropLast_sub.nodup hL_rev_nodup
+    set lower := (lowerHullScan L).reverse.dropLast with hlower
+    set upper := (upperHullScan L).reverse.dropLast with hupper
+    have filt_nodup : (upper.filter (fun p => decide (p ∉ lower))).Nodup :=
+      upper_nodup.filter _
+    refine List.Nodup.append lower_nodup filt_nodup ?_
+    intro x hx_lower hx_filt
+    rw [List.mem_filter] at hx_filt
+    obtain ⟨_, hx_not⟩ := hx_filt
+    exact (of_decide_eq_true hx_not) hx_lower
+
 lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
     (convexHullRationalPoints points).Nodup := by
-  sorry
+  unfold convexHullRationalPoints
+  exact convexHullFromSorted_nodup (sortRationalPointsLex_nodup points)
 
 -- lemma convexHullRationalPoints_extreme (points : List RationalPoint) :
 --     (convexHullRationalPoints points).All (fun v =>
