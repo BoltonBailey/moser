@@ -113,20 +113,18 @@ def applyPolygon (iso : DirectIsometry) (poly : ConvexPolygon) : ConvexPolygon w
   vertices_extremeRationalPoints := by
     intro i j hji hji1
     have h := poly.vertices_extremeRationalPoints i j hji hji1
-    simp only [NondegenPolygon.getStrictlyLeftHalfspace, RationalPoint.toStrictlyLeft,
-      OpenHalfSpace.contains, decide_eq_true_eq] at h ⊢
-    -- Rotations preserve dotProduct (rotate90CCW ·) · = crossProduct · ·, and
-    -- det of rotation matrix = cos²+sin² = 1 preserves cross products
-    have heq : RationalPoint.dotProduct
-          (RationalPoint.rotate90Counterclockwise
-            (iso.apply (poly.vertices (i + 1)) - iso.apply (poly.vertices i)))
+    -- The convexity invariant is now `IsCCWPolygon`, i.e. a `ccw` condition.
+    -- Direct isometries preserve cross products (det of the rotation matrix is 1),
+    -- hence preserve `ccw`.
+    simp only [RationalPoint.ccw, RationalPoint.isStrictlyLeftOf, decide_eq_true_eq] at h ⊢
+    have heq : RationalPoint.crossProduct
+          (iso.apply (poly.vertices (i + 1)) - iso.apply (poly.vertices i))
           (iso.apply (poly.vertices j) - iso.apply (poly.vertices i)) =
-        RationalPoint.dotProduct
-          (RationalPoint.rotate90Counterclockwise
-            (poly.vertices (i + 1) - poly.vertices i))
+        RationalPoint.crossProduct
+          (poly.vertices (i + 1) - poly.vertices i)
           (poly.vertices j - poly.vertices i) := by
-      simp only [RationalPoint.dotProduct, RationalPoint.rotate90Counterclockwise, apply,
-        Pi.sub_apply, Pi.add_apply, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
+      simp only [RationalPoint.crossProduct, apply, Pi.sub_apply, Pi.add_apply,
+        Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
       linear_combination
         ((poly.vertices (i + 1) 0 - poly.vertices i 0) * (poly.vertices j 1 - poly.vertices i 1) -
          (poly.vertices (i + 1) 1 - poly.vertices i 1) * (poly.vertices j 0 - poly.vertices i 0)) *
