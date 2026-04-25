@@ -260,7 +260,25 @@ lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
 Construct a ConvexPolygon from a list of points by removing duplicates
     and keeping only extreme points of the convex hull.
     returns none if there are fewer than 3 extreme points. -/
-def ConvexPolygon.ofList (vertices : List RationalPoint) : Option ConvexPolygon := sorry
+def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
+  let hull := convexHullRationalPoints verts
+  if h_three : 3 ≤ hull.length then
+    let nondegen : NondegenPolygon :=
+      { vertex_count := hull.length
+        vertex_count_pos := ⟨by omega⟩
+        three_le_vertex_count := h_three
+        vertices := hull.get
+        nodup := by
+          have hnodup : hull.Nodup := convexHullRationalPoints_nodup verts
+          intro i j hij
+          exact Fin.ext (List.Nodup.get_inj_iff hnodup |>.mp hij) }
+    if h_convex :
+        ∀ i j : Fin hull.length, j ≠ i → j ≠ i + 1 →
+          (NondegenPolygon.getStrictlyLeftHalfspace nondegen i).contains
+            (nondegen.vertices j) = true then
+      some { toNondegenPolygon := nondegen, vertices_extremeRationalPoints := h_convex }
+    else none
+  else none
 
 /--
 Returns a list of closed half-spaces corresponding to the edges of the convex polygon.
