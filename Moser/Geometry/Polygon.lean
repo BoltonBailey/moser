@@ -530,12 +530,119 @@ Pieces that look helpful for the proof and don't yet exist:
 * Lex-sorting / dedup facts ensuring the leftmost and rightmost x-coordinates are
   achieved exactly once each in the hull output.
 -/
+/--
+Linear (non-wrap-around) chain on the convex hull output.
+
+This is the consecutive-triples-in-order content: every `i` with `i + 2 < length`
+gives `ccw H[i] H[i+1] H[i+2] = true`. It does not yet account for the wrap-around
+triples that close the polygon.
+-/
+lemma convexHullRationalPoints_isCCWChain (verts : List RationalPoint) :
+    IsCCWChain (convexHullRationalPoints verts) := by
+  sorry
+
+/--
+Wrap-around triple at the end of the convex hull list:
+the last two elements together with the first form a strict left turn.
+-/
+lemma convexHullRationalPoints_wrap_end (verts : List RationalPoint)
+    (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
+    let H := convexHullRationalPoints verts
+    RationalPoint.ccw (H.get ⟨H.length - 2, by omega⟩)
+      (H.get ⟨H.length - 1, by omega⟩) (H.get ⟨0, by omega⟩) = true := by
+  sorry
+
+/--
+Wrap-around triple at the start of the convex hull list:
+the last element together with the first two forms a strict left turn.
+-/
+lemma convexHullRationalPoints_wrap_start (verts : List RationalPoint)
+    (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
+    let H := convexHullRationalPoints verts
+    RationalPoint.ccw (H.get ⟨H.length - 1, by omega⟩)
+      (H.get ⟨0, by omega⟩) (H.get ⟨1, by omega⟩) = true := by
+  sorry
+
+/--
+The convex hull algorithm produces a list whose cyclic consecutive triples are all
+strict counterclockwise turns. Built from the linear chain plus the two wrap-around
+triples.
+-/
 lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
     (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
     haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
     IsCyclicCCWChain (n := (convexHullRationalPoints verts).length)
       (convexHullRationalPoints verts).get := by
-  sorry
+  haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
+  set H := convexHullRationalPoints verts with hH
+  set n := H.length with hn
+  have h_chain : IsCCWChain H := convexHullRationalPoints_isCCWChain verts
+  rw [IsCCWChain_iff_get] at h_chain
+  intro i
+  -- Goal: ccw (H.get i) (H.get (i+1)) (H.get (i+2)) = true
+  -- Three cases on i.val vs n:
+  -- (a) i.val + 2 < n: linear chain at i.val.
+  -- (b) i.val + 2 = n (i.val = n - 2): wrap_end (since (i+2).val = 0).
+  -- (c) i.val + 1 = n (i.val = n - 1): wrap_start (since (i+1).val = 0, (i+2).val = 1).
+  rcases lt_or_ge (i.val + 2) n with h_lt | h_ge
+  · -- Linear case: pull through `IsCCWChain_iff_get`.
+    have := h_chain i.val h_lt
+    have hi : (i + 1).val = i.val + 1 := by
+      simp only [Fin.val_add, Fin.val_one]
+      apply Nat.mod_eq_of_lt
+      omega
+    have hi2 : (i + 2).val = i.val + 2 := by
+      have h2 : ((2 : Fin n)).val = 2 := by
+        rw [Fin.val_two_iff]
+      simp only [Fin.val_add, h2]
+      apply Nat.mod_eq_of_lt
+      omega
+    convert this using 2
+    · exact Fin.ext hi
+    · exact Fin.ext hi2
+  · -- Wrap-around: i.val + 2 ≥ n, and i.val < n, so i.val ∈ {n - 2, n - 1}.
+    have hi_lt : i.val < n := i.isLt
+    have h_pos : 0 < n := by omega
+    have h_or : i.val = n - 2 ∨ i.val = n - 1 := by omega
+    rcases h_or with h_eq | h_eq
+    · -- Case i.val = n - 2: triple is (H[n-2], H[n-1], H[0]).
+      have hi1 : (i + 1).val = n - 1 := by
+        simp only [Fin.val_add, Fin.val_one]
+        rw [h_eq]; rw [Nat.mod_eq_of_lt (by omega : n - 2 + 1 < n)]
+      have hi2 : (i + 2).val = 0 := by
+        have h2 : ((2 : Fin n)).val = 2 := by rw [Fin.val_two_iff]
+        simp only [Fin.val_add, h2]
+        rw [h_eq]
+        have : n - 2 + 2 = n := by omega
+        rw [this, Nat.mod_self]
+      have h_we := convexHullRationalPoints_wrap_end verts h_three
+      simp only at h_we
+      have hi_eq : i = ⟨n - 2, by omega⟩ := Fin.ext h_eq
+      rw [hi_eq]
+      convert h_we using 2
+      · exact Fin.ext (by simp [hi1, h_eq])
+      · exact Fin.ext (by simp [hi2, h_eq])
+    · -- Case i.val = n - 1: triple is (H[n-1], H[0], H[1]).
+      have hi1 : (i + 1).val = 0 := by
+        simp only [Fin.val_add, Fin.val_one]
+        rw [h_eq]
+        have : n - 1 + 1 = n := by omega
+        rw [this, Nat.mod_self]
+      have hi2 : (i + 2).val = 1 := by
+        have h2 : ((2 : Fin n)).val = 2 := by rw [Fin.val_two_iff]
+        simp only [Fin.val_add, h2]
+        rw [h_eq]
+        have : n - 1 + 2 = n + 1 := by omega
+        rw [this]
+        rw [Nat.add_mod_right]
+        exact Nat.mod_eq_of_lt (by omega)
+      have h_ws := convexHullRationalPoints_wrap_start verts h_three
+      simp only at h_ws
+      have hi_eq : i = ⟨n - 1, by omega⟩ := Fin.ext h_eq
+      rw [hi_eq]
+      convert h_ws using 2
+      · exact Fin.ext (by simp [hi1, h_eq])
+      · exact Fin.ext (by simp [hi2, h_eq])
 
 /--
 Classical geometric theorem: a list of distinct points whose every cyclic
