@@ -508,7 +508,7 @@ lemma getStrictlyLeftHalfspace_contains_eq_ccw
   congr 1
   ring
 
-/--
+/-
 The convex hull algorithm produces a list whose cyclic consecutive triples are all
 strict counterclockwise turns.
 
