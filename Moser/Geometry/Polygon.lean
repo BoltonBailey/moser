@@ -579,75 +579,79 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
     IsCyclicCCWChain (n := (convexHullRationalPoints verts).length)
       (convexHullRationalPoints verts).get := by
   haveI : NeZero (convexHullRationalPoints verts).length := ⟨by omega⟩
-  set H := convexHullRationalPoints verts with hH
-  set n := H.length with hn
-  have h_chain : IsCCWChain H := convexHullRationalPoints_isCCWChain verts
-  rw [IsCCWChain_iff_get] at h_chain
+  have h_chain_raw : IsCCWChain (convexHullRationalPoints verts) :=
+    convexHullRationalPoints_isCCWChain verts
+  rw [IsCCWChain_iff_get] at h_chain_raw
+  -- Abbreviation for convenience; using `let`/`have` so omega still sees the length
+  -- through `(convexHullRationalPoints verts).length`.
   intro i
-  -- Goal: ccw (H.get i) (H.get (i+1)) (H.get (i+2)) = true
-  -- Three cases on i.val vs n:
-  -- (a) i.val + 2 < n: linear chain at i.val.
-  -- (b) i.val + 2 = n (i.val = n - 2): wrap_end (since (i+2).val = 0).
-  -- (c) i.val + 1 = n (i.val = n - 1): wrap_start (since (i+1).val = 0, (i+2).val = 1).
-  rcases lt_or_ge (i.val + 2) n with h_lt | h_ge
+  -- Goal: ccw (H.get i) (H.get (i+1)) (H.get (i+2)) = true where
+  -- H = convexHullRationalPoints verts and i : Fin H.length.
+  -- Three cases on i.val vs H.length:
+  -- (a) i.val + 2 < length: linear chain at i.val.
+  -- (b) i.val = length - 2: wrap_end.
+  -- (c) i.val = length - 1: wrap_start.
+  have h_one_val : ((1 : Fin (convexHullRationalPoints verts).length) : ℕ) = 1 := by
+    show 1 % (convexHullRationalPoints verts).length = 1
+    exact Nat.mod_eq_of_lt (by omega)
+  have h_two_val : ((2 : Fin (convexHullRationalPoints verts).length) : ℕ) = 2 := by
+    show 2 % (convexHullRationalPoints verts).length = 2
+    exact Nat.mod_eq_of_lt (by omega)
+  have hi_lt : i.val < (convexHullRationalPoints verts).length := i.isLt
+  rcases lt_or_ge (i.val + 2) (convexHullRationalPoints verts).length with h_lt | h_ge
   · -- Linear case: pull through `IsCCWChain_iff_get`.
-    have := h_chain i.val h_lt
-    have hi : (i + 1).val = i.val + 1 := by
-      simp only [Fin.val_add, Fin.val_one]
-      apply Nat.mod_eq_of_lt
-      omega
-    have hi2 : (i + 2).val = i.val + 2 := by
-      have h2 : ((2 : Fin n)).val = 2 := by
-        rw [Fin.val_two_iff]
-      simp only [Fin.val_add, h2]
-      apply Nat.mod_eq_of_lt
-      omega
-    convert this using 2
-    · exact Fin.ext hi
-    · exact Fin.ext hi2
-  · -- Wrap-around: i.val + 2 ≥ n, and i.val < n, so i.val ∈ {n - 2, n - 1}.
-    have hi_lt : i.val < n := i.isLt
-    have h_pos : 0 < n := by omega
-    have h_or : i.val = n - 2 ∨ i.val = n - 1 := by omega
+    have hchain := h_chain_raw i.val h_lt
+    have hi1_val : (i + 1).val = i.val + 1 := by
+      rw [Fin.val_add, h_one_val]
+      exact Nat.mod_eq_of_lt (by omega)
+    have hi2_val : (i + 2).val = i.val + 2 := by
+      rw [Fin.val_add, h_two_val]
+      exact Nat.mod_eq_of_lt (by omega)
+    have e1 : i + 1 = ⟨i.val + 1, by omega⟩ := Fin.ext hi1_val
+    have e2 : i + 2 = ⟨i.val + 2, by omega⟩ := Fin.ext hi2_val
+    rw [e1, e2]
+    -- Goal: ccw (H.get i) (H.get ⟨i.val+1, _⟩) (H.get ⟨i.val+2, _⟩) = true
+    -- And `H.get i` is the same as `H.get ⟨i.val, _⟩` since `i = ⟨i.val, i.isLt⟩` defeq.
+    exact hchain
+  · -- Wrap-around: i.val + 2 ≥ length, and i.val < length, so i.val ∈ {length - 2, length - 1}.
+    have h_or : i.val = (convexHullRationalPoints verts).length - 2 ∨
+                i.val = (convexHullRationalPoints verts).length - 1 := by omega
     rcases h_or with h_eq | h_eq
-    · -- Case i.val = n - 2: triple is (H[n-2], H[n-1], H[0]).
-      have hi1 : (i + 1).val = n - 1 := by
-        simp only [Fin.val_add, Fin.val_one]
-        rw [h_eq]; rw [Nat.mod_eq_of_lt (by omega : n - 2 + 1 < n)]
-      have hi2 : (i + 2).val = 0 := by
-        have h2 : ((2 : Fin n)).val = 2 := by rw [Fin.val_two_iff]
-        simp only [Fin.val_add, h2]
-        rw [h_eq]
-        have : n - 2 + 2 = n := by omega
-        rw [this, Nat.mod_self]
+    · -- Case i.val = length - 2: triple is (H[length-2], H[length-1], H[0]).
+      have hi1_val : (i + 1).val = (convexHullRationalPoints verts).length - 1 := by
+        rw [Fin.val_add, h_one_val, h_eq]
+        rw [Nat.mod_eq_of_lt (by omega)]
+      have hi2_val : (i + 2).val = 0 := by
+        rw [Fin.val_add, h_two_val, h_eq]
+        have h_sum : (convexHullRationalPoints verts).length - 2 + 2 =
+            (convexHullRationalPoints verts).length := by omega
+        rw [h_sum, Nat.mod_self]
       have h_we := convexHullRationalPoints_wrap_end verts h_three
-      simp only at h_we
-      have hi_eq : i = ⟨n - 2, by omega⟩ := Fin.ext h_eq
-      rw [hi_eq]
-      convert h_we using 2
-      · exact Fin.ext (by simp [hi1, h_eq])
-      · exact Fin.ext (by simp [hi2, h_eq])
-    · -- Case i.val = n - 1: triple is (H[n-1], H[0], H[1]).
-      have hi1 : (i + 1).val = 0 := by
-        simp only [Fin.val_add, Fin.val_one]
-        rw [h_eq]
-        have : n - 1 + 1 = n := by omega
-        rw [this, Nat.mod_self]
-      have hi2 : (i + 2).val = 1 := by
-        have h2 : ((2 : Fin n)).val = 2 := by rw [Fin.val_two_iff]
-        simp only [Fin.val_add, h2]
-        rw [h_eq]
-        have : n - 1 + 2 = n + 1 := by omega
-        rw [this]
-        rw [Nat.add_mod_right]
+      have ei : i = ⟨(convexHullRationalPoints verts).length - 2, by omega⟩ := Fin.ext h_eq
+      have e1 : i + 1 =
+          ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext hi1_val
+      have e2 : i + 2 = ⟨0, by omega⟩ := Fin.ext hi2_val
+      rw [ei, e1, e2]
+      -- Now goal is exactly h_we, modulo `ei` matching the first triple element
+      convert h_we
+    · -- Case i.val = length - 1: triple is (H[length-1], H[0], H[1]).
+      have hi1_val : (i + 1).val = 0 := by
+        rw [Fin.val_add, h_one_val, h_eq]
+        have h_sum : (convexHullRationalPoints verts).length - 1 + 1 =
+            (convexHullRationalPoints verts).length := by omega
+        rw [h_sum, Nat.mod_self]
+      have hi2_val : (i + 2).val = 1 := by
+        rw [Fin.val_add, h_two_val, h_eq]
+        have h_sum : (convexHullRationalPoints verts).length - 1 + 2 =
+            (convexHullRationalPoints verts).length + 1 := by omega
+        rw [h_sum, Nat.add_mod_left]
         exact Nat.mod_eq_of_lt (by omega)
       have h_ws := convexHullRationalPoints_wrap_start verts h_three
-      simp only at h_ws
-      have hi_eq : i = ⟨n - 1, by omega⟩ := Fin.ext h_eq
-      rw [hi_eq]
-      convert h_ws using 2
-      · exact Fin.ext (by simp [hi1, h_eq])
-      · exact Fin.ext (by simp [hi2, h_eq])
+      have ei : i = ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext h_eq
+      have e1 : i + 1 = ⟨0, by omega⟩ := Fin.ext hi1_val
+      have e2 : i + 2 = ⟨1, by omega⟩ := Fin.ext hi2_val
+      rw [ei, e1, e2]
+      convert h_ws
 
 /--
 Classical geometric theorem: a list of distinct points whose every cyclic
