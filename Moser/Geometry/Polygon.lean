@@ -124,12 +124,18 @@ Stitch the lower and upper hull scans into a single counterclockwise vertex list
 Each scan is reversed into traversal order, then `dropLast` removes the shared
 endpoint where the lower and upper hulls meet, avoiding duplicates. For lists
 with fewer than two distinct points the special cases short-circuit.
+
+The upper part is filtered against the lower part to guarantee that the
+concatenation has no duplicates, even in degenerate cases where the two hulls
+might otherwise share an interior point.
 -/
 def convexHullFromSorted : List RationalPoint → List RationalPoint
   | [] => []
   | [p] => [p]
   | sorted =>
-    (lowerHullScan sorted).reverse.dropLast ++ (upperHullScan sorted).reverse.dropLast
+    let lower := (lowerHullScan sorted).reverse.dropLast
+    let upper := (upperHullScan sorted).reverse.dropLast
+    lower ++ upper.filter (fun p => decide (p ∉ lower))
 
 /--
 Compute the convex hull of a list of points using a Graham-scan-like algorithm.
