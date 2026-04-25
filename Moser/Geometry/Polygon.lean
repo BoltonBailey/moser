@@ -305,6 +305,44 @@ def IsCCWChain : List RationalPoint → Prop
 @[simp] lemma IsCCWChain_pair (p q : RationalPoint) : IsCCWChain [p, q] := trivial
 
 /--
+Indexing characterization of `IsCCWChain`: a list is a CCW chain iff every
+position `i` with two successors satisfies `ccw L[i] L[i+1] L[i+2] = true`.
+-/
+lemma IsCCWChain_iff_get (L : List RationalPoint) :
+    IsCCWChain L ↔ ∀ (i : ℕ) (h : i + 2 < L.length),
+      RationalPoint.ccw (L.get ⟨i, by omega⟩) (L.get ⟨i + 1, by omega⟩)
+        (L.get ⟨i + 2, h⟩) = true := by
+  induction L with
+  | nil => simp [IsCCWChain]
+  | cons p tail ih =>
+    cases tail with
+    | nil => simp [IsCCWChain]
+    | cons q tail' =>
+      cases tail' with
+      | nil => simp [IsCCWChain]
+      | cons r rest =>
+        simp only [IsCCWChain]
+        rw [ih]
+        constructor
+        · rintro ⟨h0, h_rest⟩ i hi
+          match i, hi with
+          | 0, _ => exact h0
+          | k + 1, hk =>
+            have hk' : k + 2 < (q :: r :: rest).length := by
+              simp at hk ⊢; omega
+            have := h_rest k hk'
+            simpa using this
+        · intro h
+          refine ⟨?_, ?_⟩
+          · have := h 0 (by simp)
+            simpa using this
+          · intro k hk
+            have hk' : k + 1 + 2 < (p :: q :: r :: rest).length := by
+              simp at hk ⊢; omega
+            have := h (k + 1) hk'
+            simpa using this
+
+/--
 Appending an element to a chain whose last two elements are `a, b`
 preserves the chain when `ccw a b c = true`.
 -/
