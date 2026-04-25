@@ -452,17 +452,29 @@ Algorithm-correctness statement for `convexHullRationalPoints`: when the hull ha
 at least three vertices, every other vertex lies strictly left of every directed
 edge of the hull.
 
-This is the heart of the correctness of the Graham-scan / monotone-chain
-implementation in `convexHullRationalPoints`. A full proof needs:
-1. Induction on `lowerHullScan` / `upperHullScan` showing every consecutive
-   triple in the resulting stack is a strict left turn.
-2. A junction argument at the leftmost / rightmost meeting points of the lower
-   and upper hulls.
-3. The fact that all input points lie weakly inside the hull, so non-edge hull
-   vertices are strictly inside any edge's open half-space.
+Status of the proof:
 
-For now we record this as a structural lemma and leave its proof as `sorry`;
-once it is closed, `ConvexPolygon.ofList_eq_none_iff` follows immediately.
+* The Graham-scan invariant — every consecutive triple (in arrival order) of
+  `lowerHullScan` and `upperHullScan` is a strict left turn — is established by
+  `lowerHullScan_reverse_isCCWChain` and `upperHullScan_reverse_isCCWChain`,
+  via the chain-preservation lemmas `grahamScanStep_chain` and
+  `foldl_grahamScanStep_chain`.
+* The half-space membership condition on the LHS reduces to a `RationalPoint.ccw`
+  condition via `getStrictlyLeftHalfspace_contains_eq_ccw`.
+
+What still needs to be assembled:
+
+1. Junction CCW: the chain extends across the seam where the lower hull meets
+   the upper hull (at the leftmost and rightmost x-coordinates).
+2. Cyclic closure: the wrap-around triples `(v_{n-1}, v_0, v_1)` and
+   `(v_{n-2}, v_{n-1}, v_0)` are also strict left turns.
+3. The classical geometric theorem: a list of distinct points whose every
+   cyclic consecutive triple is a strict left turn is strictly convex — every
+   non-adjacent vertex lies strictly inside the open half-space of every edge.
+
+(3) is the substantive geometric content that does not follow purely from the
+chain invariant and needs a separate proof (induction on the polygon, or a
+winding-number / Hopf Umlaufsatz style argument).
 -/
 lemma convexHullRationalPoints_convex (verts : List RationalPoint)
     (h_three : 3 ≤ (convexHullRationalPoints verts).length) :
