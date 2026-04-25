@@ -50,29 +50,39 @@ def NondegenPolygon.getStrictlyLeftHalfspace (ng : NondegenPolygon) (i : Fin ng.
 
 
 /--
+The CCW polygon condition for an indexed family of vertices: for every edge
+`vᵢ → vᵢ₊₁` and every other vertex `vⱼ` (i.e. `j ≠ i, i+1`, with arithmetic mod `n`),
+the triple `(vᵢ, vᵢ₊₁, vⱼ)` is a strict counterclockwise turn — equivalently, `vⱼ`
+lies strictly to the left of the directed edge from `vᵢ` to `vᵢ₊₁`.
+
+This is the natural strict-convexity invariant for a polygon traversed
+counterclockwise: every non-adjacent vertex lies strictly inside the open
+half-space supporting each edge. Strictness rules out collinear triples, so the
+listed vertices are exactly the extreme points of the convex hull.
+-/
+def IsCCWPolygon {n : ℕ} [NeZero n] (vertices : Fin n → RationalPoint) : Prop :=
+  ∀ i j : Fin n, j ≠ i → j ≠ i + 1 →
+    RationalPoint.ccw (vertices i) (vertices (i + 1)) (vertices j) = true
+
+instance {n : ℕ} [NeZero n] (vertices : Fin n → RationalPoint) :
+    Decidable (IsCCWPolygon vertices) :=
+  inferInstanceAs (Decidable (∀ _ _ : Fin n, _ → _ → _))
+
+/--
 A convex polygon.
 
-Convexity is enforced by the condition that for each edge i→i+1,
-all other vertices lie strictly to the left of that edge.
+Convexity is enforced by `IsCCWPolygon vertices`: every edge `vᵢ → vᵢ₊₁` has all
+other vertices strictly to its left.
 
 The strictness enforces that there can be no collinear triples of vertices,
 which in turn ensures that all vertices are extreme points of the convex hull.
 -/
 structure ConvexPolygon extends NondegenPolygon where
-  /-- For all edges i→i+1, all other vertices lie on or to the left (closed half-space) -/
-  vertices_extremeRationalPoints :
-    ∀ i j : Fin vertex_count, j ≠ i → j ≠ i + 1 →
-      (NondegenPolygon.getStrictlyLeftHalfspace
-        ⟨vertex_count, vertex_count_pos, three_le_vertex_count, vertices, nodup⟩ i
-      ).contains (vertices j) = true
+  /-- Every non-adjacent vertex lies strictly counterclockwise of every edge. -/
+  vertices_extremeRationalPoints : IsCCWPolygon vertices
 deriving Repr, DecidableEq
 
 attribute [nolint unusedArguments] instReprConvexPolygon.repr
-
-
-  -- ∀ i j k : Fin vertex_count,
-  --   i < j → j < k →
-  --     RationalPoint.ccw (vertices i) (vertices j) (vertices k) = true
 
 
 /--
