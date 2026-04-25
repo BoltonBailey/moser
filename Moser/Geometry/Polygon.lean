@@ -619,8 +619,8 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
     rcases h_or with h_eq | h_eq
     · -- Case i.val = length - 2: triple is (H[length-2], H[length-1], H[0]).
       have hi1_val : (i + 1).val = (convexHullRationalPoints verts).length - 1 := by
-        rw [Fin.val_add, h_one_val, h_eq]
-        rw [Nat.mod_eq_of_lt (by omega)]
+        rw [Fin.val_add, h_one_val, h_eq, Nat.mod_eq_of_lt (by omega)]
+        omega
       have hi2_val : (i + 2).val = 0 := by
         rw [Fin.val_add, h_two_val, h_eq]
         have h_sum : (convexHullRationalPoints verts).length - 2 + 2 =
@@ -631,8 +631,7 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
       have e1 : i + 1 =
           ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext hi1_val
       have e2 : i + 2 = ⟨0, by omega⟩ := Fin.ext hi2_val
-      rw [ei, e1, e2]
-      -- Now goal is exactly h_we, modulo `ei` matching the first triple element
+      rw [e1, e2, ei]
       convert h_we
     · -- Case i.val = length - 1: triple is (H[length-1], H[0], H[1]).
       have hi1_val : (i + 1).val = 0 := by
@@ -650,7 +649,7 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
       have ei : i = ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext h_eq
       have e1 : i + 1 = ⟨0, by omega⟩ := Fin.ext hi1_val
       have e2 : i + 2 = ⟨1, by omega⟩ := Fin.ext hi2_val
-      rw [ei, e1, e2]
+      rw [e1, e2, ei]
       convert h_ws
 
 /--
