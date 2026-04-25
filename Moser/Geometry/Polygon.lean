@@ -308,7 +308,7 @@ lemma IsCCWChain_append_cons_cons :
       have ih := IsCCWChain_append_cons_cons h2' h_turn
       have ih' : IsCCWChain (y :: (z :: rest ++ [a, b, c])) := by
         simpa using ih
-      show IsCCWChain (x :: y :: (z :: rest ++ [a, b, c]))
+      change IsCCWChain (x :: y :: (z :: rest ++ [a, b, c]))
       exact ⟨h1, ih'⟩
 
 /-- Dropping the last element of a CCW chain still gives a CCW chain. -/
@@ -360,7 +360,7 @@ lemma grahamScanStep_chain (acc : List RationalPoint) (p : RationalPoint) :
         rw [h_eq] at h
         have h_drop : ((r :: rest).reverse ++ [q]).dropLast =
             (r :: rest).reverse := by
-          simp [List.dropLast_concat]
+          simp
         have h_chain : IsCCWChain (r :: rest).reverse := by
           have := IsCCWChain.dropLast h
           rwa [h_drop] at this
