@@ -282,6 +282,21 @@ def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
   else none
 
 /--
+`ConvexPolygon.ofList` returns `none` exactly when the input has fewer than three
+extreme points. Equivalently, whenever the convex hull has at least three vertices,
+the convexity invariant `vertices_extremeRationalPoints` is automatically satisfied
+by the algorithm's output, so the construction succeeds.
+
+The reverse direction is immediate from the implementation; the forward direction
+is the correctness statement of `convexHullRationalPoints` (every consecutive triple
+in the hull is a strict left turn).
+-/
+lemma ConvexPolygon.ofList_eq_none_iff (verts : List RationalPoint) :
+    ConvexPolygon.ofList verts = none ↔
+      (convexHullRationalPoints verts).length < 3 := by
+  sorry
+
+/--
 Returns a list of closed half-spaces corresponding to the edges of the convex polygon.
 If there are fewer than 3 vertices, returns none.
 -/
