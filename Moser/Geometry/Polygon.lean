@@ -91,6 +91,44 @@ def grahamScanStep (stack : List RationalPoint) (p : RationalPoint) : List Ratio
     if RationalPoint.ccw r q p then p :: stack
     else grahamScanStep (r :: rest) p
 
+/-- Lexicographic order on rational points: by `x`-coordinate, breaking ties with `y`. -/
+def RationalPoint.lexLE (p q : RationalPoint) : Bool :=
+  decide (p 0 < q 0) || (decide (p 0 = q 0) && decide (p 1 ≤ q 1))
+
+/-- Sort a list of rational points lexicographically by `(x, y)`. -/
+def sortRationalPointsLex (points : List RationalPoint) : List RationalPoint :=
+  points.mergeSort RationalPoint.lexLE
+
+/--
+Lower-hull pass of Andrew's monotone chain: fold `grahamScanStep` left over an
+already-sorted list. Scanning left-to-right keeps only strict left turns, so the
+result is the lower hull in **reverse** traversal order (the rightmost point is
+at the head, the leftmost at the tail).
+-/
+def lowerHullScan (sorted : List RationalPoint) : List RationalPoint :=
+  sorted.foldl grahamScanStep []
+
+/--
+Upper-hull pass of Andrew's monotone chain: scan the **reverse** of an
+already-sorted list. The result is the upper hull in reverse traversal order
+(the leftmost point is at the head, the rightmost at the tail).
+-/
+def upperHullScan (sorted : List RationalPoint) : List RationalPoint :=
+  sorted.reverse.foldl grahamScanStep []
+
+/--
+Stitch the lower and upper hull scans into a single counterclockwise vertex list.
+
+Each scan is reversed into traversal order, then `dropLast` removes the shared
+endpoint where the lower and upper hulls meet, avoiding duplicates. For lists
+with fewer than two distinct points the special cases short-circuit.
+-/
+def convexHullFromSorted : List RationalPoint → List RationalPoint
+  | [] => []
+  | [p] => [p]
+  | sorted =>
+    (lowerHullScan sorted).reverse.dropLast ++ (upperHullScan sorted).reverse.dropLast
+
 /--
 Compute the convex hull of a list of points using a Graham-scan-like algorithm.
 Should return a list of vertices such that:
@@ -103,24 +141,14 @@ Should return a list of vertices such that:
 - All input points are in the convex hull defined by the returned vertices.
 - The returned vertices are extreme points of the convex hull
   (no vertex is a convex combination of others).
+
+Implementation: lex-sort the points, then stitch the two monotone-chain scans
+together via `convexHullFromSorted`. Consecutive duplicates in the sorted list
+are absorbed by `grahamScanStep`, since `RationalPoint.ccw` is strict and
+returns `false` whenever two of its arguments coincide.
 -/
 def convexHullRationalPoints (points : List RationalPoint) : List RationalPoint :=
-  -- Lexicographic order on (x, y); consecutive duplicates are absorbed by `grahamScanStep`,
-  -- since `RationalPoint.ccw` is strict and returns `false` whenever two arguments coincide.
-  let lex (p q : RationalPoint) : Bool :=
-    decide (p 0 < q 0) || (decide (p 0 = q 0) && decide (p 1 ≤ q 1))
-  let sorted := points.mergeSort lex
-  match sorted with
-  | [] => []
-  | [p] => [p]
-  | _ =>
-    -- Andrew's monotone chain: scanning left-to-right with `grahamScanStep` keeps strict
-    -- left turns, producing the lower hull (top of stack = rightmost). Reversing the input
-    -- yields the upper hull. Each list is reversed so it runs leftmost→rightmost (resp.
-    -- rightmost→leftmost); dropping the last element of each removes the shared endpoints.
-    let lower := sorted.foldl grahamScanStep []
-    let upper := sorted.reverse.foldl grahamScanStep []
-    lower.reverse.dropLast ++ upper.reverse.dropLast
+  convexHullFromSorted (sortRationalPointsLex points)
 
 lemma convexHullRationalPoints_nodup (points : List RationalPoint) :
     (convexHullRationalPoints points).Nodup := by
