@@ -631,8 +631,9 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
       have e1 : i + 1 =
           ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext hi1_val
       have e2 : i + 2 = ⟨0, by omega⟩ := Fin.ext hi2_val
-      rw [e1, e2, ei]
-      convert h_we
+      rw [e1, e2]
+      subst ei
+      exact h_we
     · -- Case i.val = length - 1: triple is (H[length-1], H[0], H[1]).
       have hi1_val : (i + 1).val = 0 := by
         rw [Fin.val_add, h_one_val, h_eq]
@@ -649,8 +650,9 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
       have ei : i = ⟨(convexHullRationalPoints verts).length - 1, by omega⟩ := Fin.ext h_eq
       have e1 : i + 1 = ⟨0, by omega⟩ := Fin.ext hi1_val
       have e2 : i + 2 = ⟨1, by omega⟩ := Fin.ext hi2_val
-      rw [e1, e2, ei]
-      convert h_ws
+      rw [e1, e2]
+      subst ei
+      exact h_ws
 
 /--
 Classical geometric theorem: a list of distinct points whose every cyclic
