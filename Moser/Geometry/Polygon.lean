@@ -426,6 +426,27 @@ def ConvexPolygon.ofList (verts : List RationalPoint) : Option ConvexPolygon :=
   else none
 
 /--
+Membership in the open half-space strictly to the left of an edge `vᵢ → vᵢ₊₁`
+is exactly the strict counterclockwise predicate.
+
+This unfolds the layered definitions (`getStrictlyLeftHalfspace`, `toStrictlyLeft`,
+`OpenHalfSpace.contains`, `dotProduct`, `rotate90Counterclockwise`, `crossProduct`,
+`isStrictlyLeftOf`, `ccw`) into a single clean equality, so downstream proofs can
+work directly with `RationalPoint.ccw`.
+-/
+lemma getStrictlyLeftHalfspace_contains_eq_ccw
+    (ng : NondegenPolygon) (i : Fin ng.vertex_count) (v : RationalPoint) :
+    (NondegenPolygon.getStrictlyLeftHalfspace ng i).contains v =
+      RationalPoint.ccw (ng.vertices i) (ng.vertices (i + 1)) v := by
+  unfold NondegenPolygon.getStrictlyLeftHalfspace RationalPoint.toStrictlyLeft
+  unfold OpenHalfSpace.contains RationalPoint.ccw RationalPoint.isStrictlyLeftOf
+  unfold RationalPoint.dotProduct RationalPoint.crossProduct
+    RationalPoint.rotate90Counterclockwise
+  congr 1
+  simp [Pi.sub_apply, Matrix.cons_val_zero, Matrix.cons_val_one]
+  ring
+
+/--
 Algorithm-correctness statement for `convexHullRationalPoints`: when the hull has
 at least three vertices, every other vertex lies strictly left of every directed
 edge of the hull.
