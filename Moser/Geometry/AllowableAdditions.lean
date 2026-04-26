@@ -134,8 +134,6 @@ The pair list is enumerated by iterating `List.finRange poly.vertex_count`
 twice and filtering to ordered pairs `i ≠ j`. The resulting list of closed
 half-spaces is fed to `ConvexPolygon.ofHalfSpaces`, which returns `none` if
 the intersection is degenerate.
-
-
 -/
 def growthHalfspaceIntersection
     (poly : ConvexPolygon) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance) :
