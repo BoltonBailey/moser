@@ -6,5 +6,8 @@
     "def:growableDistance"
   ],
   "statement": "Let $P$, $A_*$, $\\tau$, and $V_i, V_j$ be as in\n    Definition~\\ref{def:growableDistance}, with growable distance $d$.\n    The \\emph{growth half-space} to the left of the pair $V_i, V_j$ is\n    the closed half-space lying to the left of (and including) the line\n    parallel to $V_i \\to V_j$ at perpendicular distance $d$ on the left\n    side of the directed line.",
-  "proof": null
+  "proof": null,
+  "leanDeclaration": "ConvexPolygon.growthHalfspace",
+  "leanFile": "Moser/Geometry/AllowableAdditions.lean",
+  "assessment": "HARD"
 }
