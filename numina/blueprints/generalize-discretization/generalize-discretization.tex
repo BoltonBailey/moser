@@ -3,6 +3,65 @@
 
 \begin{document}
 
-% Your blueprint will go here.
+\section{Initial worm and location range}
+
+We should have a discretization for isometries that takes into account the
+initial worm and area threshold.
+
+\begin{definition}[Area threshold]
+    \label{def:areaThreshold}
+    The \emph{area threshold} is the rational constant
+    $\tau = 232240 / 1000000$. It is the upper bound on the area we wish
+    to beat with our candidate Moser sets.
+\end{definition}
+
+\begin{definition}[Initial worm]
+    \label{def:initialWorm}
+    The \emph{initial worm} is a fixed convex polygon that any candidate
+    Moser set in the working set is assumed to contain an unshifted copy
+    of. We take it to be the isoceles right triangle with legs of length
+    $1/2$ and vertices $(0,0)$, $(1/2, 0)$, $(0, 1/2)$.
+\end{definition}
+
+\begin{definition}[Location range]
+    \label{def:locationRange}
+    \uses{def:areaThreshold}
+    Let $s = 4\tau$. The \emph{location range} is the axis-aligned square
+    with vertices $(\pm s, \pm s)$. It is intended as an upper bound on
+    the locations of points that a candidate Moser set containing the
+    initial worm can include without exceeding the area threshold.
+\end{definition}
+
+\begin{definition}[Discretized isometries for the initial worm]
+    \label{def:discretizedIsometries}
+    \uses{def:initialWorm, def:locationRange}
+    The list of discretized isometries for the initial worm with the
+    area bound is the list of those discretized isometries that do not
+    translate the origin to a point outside the location range, i.e.\
+    the translation component lies inside \texttt{LocationRange}.
+\end{definition}
+
+\begin{theorem}[Points outside the location range blow up the hull area]
+    \label{thm:area_hull_initialWorm_insert_gt_areaThreshold}
+    \lean{Moser.area_hull_initialWorm_insert_gt_areaThreshold}
+    \leanfile{Moser/Constants.lean}
+    \uses{def:areaThreshold, def:initialWorm, def:locationRange}
+    Let $p$ be a rational point not contained in the location range.
+    Then the convex hull of $\{p\} \cup V$, where $V$ is the vertex set
+    of the initial worm, has area strictly greater than the area
+    threshold $\tau$.
+\end{theorem}
+\begin{proof}
+    \uses{def:areaThreshold, def:initialWorm, def:locationRange}
+    By definition, the location range is the square with corners at
+    $(\pm 4\tau, \pm 4\tau)$. If $p = (x, y)$ lies outside this square,
+    then $\max(|x|, |y|) > 4\tau$. The initial worm has vertices
+    $(0,0)$, $(1/2, 0)$, $(0, 1/2)$, and so the triangle formed by $p$
+    together with one of the legs of the initial worm (the leg of
+    length $1/2$ along the axis where $p$ is far from the origin) has
+    base $1/2$ and height greater than $4\tau$, hence area greater
+    than $\tau$. This triangle is contained in the convex hull of $p$
+    together with the worm vertices, so the hull's area exceeds $\tau$.
+\end{proof}
 
 \end{document}

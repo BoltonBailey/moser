@@ -1,0 +1,8 @@
+{
+  "label": "def:areaThreshold",
+  "kind": "definition",
+  "title": "Area threshold",
+  "uses": [],
+  "statement": "The \\emph{area threshold} is the rational constant\n    $\\tau = 232240 / 1000000$. It is the upper bound on the area we wish\n    to beat with our candidate Moser sets.",
+  "proof": null
+}
