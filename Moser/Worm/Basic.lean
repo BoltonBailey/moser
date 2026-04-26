@@ -70,15 +70,8 @@ def scaleToUnit (w : Worm) (epsilon : ℚ) : Worm :=
   else w.scale (1 / len)
 
 
-/-- Convert worm vertices to a convex polygon. Currently this is a stub
-    implementation that ignores the input and returns a fixed unit triangle. -/
-def toConvexPolygon (_w : Worm) : ConvexPolygon :=
-  { vertex_count := 3
-    vertex_count_pos := ⟨by decide⟩
-    three_le_vertex_count := by decide
-    vertices := ![![0, 0], ![1, 0], ![0, 1]]
-    nodup := by decide
-    vertices_extremeRationalPoints := by decide }
+/-- Convert worm vertices to a convex polygon -/
+def toConvexPolygon (w : Worm) : ConvexPolygon := sorry
 
 /-- Get the convex hull as a ConvexPolygon -/
 def convexHullPolygon (w : Worm) : ConvexPolygon :=
@@ -103,54 +96,8 @@ def toConvexPolygon (w : UnitWorm) : ConvexPolygon := w.worm.toConvexPolygon
 
 end UnitWorm
 
-/-- The default unit worm: a horizontal segment from `(0,0)` to `(1,0)`. -/
-private def defaultUnitWorm : Worm where
-  vertices := [![(0 : ℚ), 0], ![1, 0]]
-  nonempty := by decide
-
-private lemma sqrtApprox_one_of_pos (eps : ℚ) (h : 0 < eps) : sqrtApprox 1 eps = 1 := by
-  unfold sqrtApprox
-  rw [if_neg (show ¬ ((1 : ℚ) ≤ 0) by norm_num), max_self]
-  unfold sqrtApprox.newton
-  rw [if_neg (show (100 : ℕ) ≠ 0 by decide)]
-  -- Goal: `(let x' := (1+1/1)/2; if |x'*x' - 1| < eps*eps then x' else newton ...) = 1`.
-  -- Use `show` to substitute the let binding (definitionally equal via beta).
-  show (if |(((1 : ℚ) + 1 / 1) / 2) * (((1 : ℚ) + 1 / 1) / 2) - 1| < eps * eps
-        then (((1 : ℚ) + 1 / 1) / 2 : ℚ)
-        else sqrtApprox.newton 1 eps (((1 : ℚ) + 1 / 1) / 2) (100 - 1)) = 1
-  rw [if_pos]
-  · norm_num
-  · have hxv : ((1 : ℚ) + 1 / 1) / 2 = 1 := by norm_num
-    rw [hxv]
-    rw [show |(1 : ℚ) * 1 - 1| = 0 by norm_num]
-    exact mul_pos h h
-
-private lemma defaultUnitWorm_lengthApprox_eq_one (eps : ℚ) (h : 0 < eps) :
-    defaultUnitWorm.lengthApprox eps = 1 := by
-  show totalLengthApprox [![(0 : ℚ), 0], ![1, 0]] eps = 1
-  unfold totalLengthApprox
-  rw [if_neg (show ¬ ([![(0 : ℚ), 0], ![1, 0]].length < 2) by decide)]
-  -- Reduce the `let pairs := ...; let segmentEpsilon := ...; foldl ...` chain.
-  -- After beta/zeta-reduction, the goal is the foldl over the singleton pair list.
-  simp only [List.tail_cons, List.zip_cons_cons, List.zip_nil_right,
-    List.length_singleton, Nat.cast_one, div_one, List.foldl_cons, List.foldl_nil, zero_add]
-  -- Goal: distanceApprox ![0,0] ![1,0] eps = 1
-  unfold distanceApprox
-  have hdist : RationalPoint.distSq ![(0 : ℚ), 0] ![1, 0] = 1 := by
-    unfold RationalPoint.distSq
-    simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
-    norm_num
-  rw [hdist]
-  exact sqrtApprox_one_of_pos eps h
-
-/-- Convert a worm to a unit worm by scaling to unit length. The current
-    implementation is a stub that ignores the inputs and returns a fixed unit
-    segment. -/
-def Worm.toUnitWorm (_w : Worm) (_epsilon : ℚ) : UnitWorm where
-  worm := defaultUnitWorm
-  unitLength := by
-    intro eps h_eps
-    rw [defaultUnitWorm_lengthApprox_eq_one eps h_eps]
-    simpa using h_eps
+/-- Convert a worm to a unit worm by scaling to unit length.
+    The epsilon parameter controls the precision of the length computation. -/
+def Worm.toUnitWorm (w : Worm) (epsilon : ℚ) : UnitWorm := sorry
 
 end Moser
