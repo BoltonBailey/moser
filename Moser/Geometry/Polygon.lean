@@ -6,6 +6,8 @@ import Moser.Geometry.HalfSpaces
 This file defines convex polygons as ordered lists of rational vertices.
 -/
 
+open Fin.NatCast
+
 
 /--
 A polygon represented by its vertices.
@@ -663,6 +665,25 @@ lemma convexHullRationalPoints_isCyclicCCWChain (verts : List RationalPoint)
       exact h_ws
 
 /--
+Helper lemma for `cyclicCCWChain_implies_isCCWPolygon`: for a cyclic CCW chain
+on `n` vertices, every vertex at gap `k` (with `2 ≤ k ≤ n - 1`) from the
+starting vertex `i` is strictly to the left of the edge `vᵢ → vᵢ₊₁`.
+
+The base case `k = 2` is the chain hypothesis. The inductive step requires the
+deep geometric content connecting local CCW turns to global convexity (e.g. via
+ear removal or a winding-number argument).
+-/
+private lemma cyclicCCWChain_gap_ccw
+    {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
+    (vertices : Fin n → RationalPoint)
+    (hinj : Function.Injective vertices)
+    (h_chain : IsCyclicCCWChain vertices)
+    (i : Fin n) (k : ℕ) (hk_lo : 2 ≤ k) (hk_hi : k ≤ n - 1) :
+    RationalPoint.ccw (vertices i) (vertices (i + 1))
+        (vertices (i + (k : Fin n))) = true := by
+  sorry
+
+/--
 Classical geometric theorem: a list of distinct points whose every cyclic
 consecutive triple is a strict counterclockwise turn is strictly convex —
 every non-adjacent vertex lies strictly to the left of every edge.
@@ -683,25 +704,6 @@ Sub-lemmas that look helpful:
 * `IsCyclicCCWChain.injective` — strict cyclic CCW with `n ≥ 3` forces vertex
   injectivity (likely already implied by `nodup`, so just plumbed through).
 -/
-/--
-Helper lemma for `cyclicCCWChain_implies_isCCWPolygon`: for a cyclic CCW chain
-on `n` vertices, every vertex at gap `k` (with `2 ≤ k ≤ n - 1`) from the
-starting vertex `i` is strictly to the left of the edge `vᵢ → vᵢ₊₁`.
-
-The base case `k = 2` is the chain hypothesis. The inductive step requires the
-deep geometric content connecting local CCW turns to global convexity (e.g. via
-ear removal or a winding-number argument).
--/
-private lemma cyclicCCWChain_gap_ccw
-    {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
-    (vertices : Fin n → RationalPoint)
-    (hinj : Function.Injective vertices)
-    (h_chain : IsCyclicCCWChain vertices)
-    (i : Fin n) (k : ℕ) (hk_lo : 2 ≤ k) (hk_hi : k ≤ n - 1) :
-    RationalPoint.ccw (vertices i) (vertices (i + 1))
-        (vertices (i + (k : Fin n))) = true := by
-  sorry
-
 lemma cyclicCCWChain_implies_isCCWPolygon
     {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
     (vertices : Fin n → RationalPoint)
@@ -755,34 +757,20 @@ lemma convexHullRationalPoints_convex (verts : List RationalPoint)
   · exact convexHullRationalPoints_isCyclicCCWChain verts h_three
 
 /--
-`ConvexPolygon.ofList` returns `none` exactly when the input has fewer than three
-extreme points. Equivalently, whenever the convex hull has at least three vertices,
-the convexity invariant `vertices_extremeRationalPoints` is automatically satisfied
-by the algorithm's output, so the construction succeeds.
+If the convex hull has fewer than three vertices, `ConvexPolygon.ofList` returns
+`none`. Immediate from the outer `if` guard.
 
-The reverse direction is immediate from the implementation; the forward direction
-is the correctness statement of `convexHullRationalPoints` (every consecutive triple
-in the hull is a strict left turn).
+The converse does *not* hold in general: `ofList` also returns `none` when the
+hull has ≥ 3 vertices but the `IsCCWPolygon` check fails. (The algorithm-
+correctness direction would close that gap, but it depends on
+`convexHullRationalPoints_convex`, which in turn relies on unproven geometric
+content; see `cyclicCCWChain_gap_ccw`.)
 -/
-lemma ConvexPolygon.ofList_eq_none_iff (verts : List RationalPoint) :
-    ConvexPolygon.ofList verts = none ↔
-      (convexHullRationalPoints verts).length < 3 := by
-  refine ⟨?_, ?_⟩
-  · -- forward: `ofList = none → length < 3`. This is the algorithm-correctness
-    -- direction; if the hull already has ≥ 3 vertices, the convexity check must
-    -- have succeeded, so the result couldn't have been `none`.
-    intro h
-    by_contra hlen
-    have hlen' : 3 ≤ (convexHullRationalPoints verts).length := Nat.le_of_not_lt hlen
-    unfold ConvexPolygon.ofList at h
-    rw [dif_pos hlen'] at h
-    have h_convex := convexHullRationalPoints_convex verts hlen'
-    rw [dif_pos h_convex] at h
-    exact Option.some_ne_none _ h
-  · -- backward: `length < 3 → ofList = none`. Immediate from the outer `if` guard.
-    intro h
-    unfold ConvexPolygon.ofList
-    rw [dif_neg (by omega)]
+lemma ConvexPolygon.ofList_eq_none_of_length_lt_three (verts : List RationalPoint)
+    (h : (convexHullRationalPoints verts).length < 3) :
+    ConvexPolygon.ofList verts = none := by
+  unfold ConvexPolygon.ofList
+  rw [dif_neg (by omega)]
 
 /--
 Returns a list of closed half-spaces corresponding to the edges of the convex polygon.
