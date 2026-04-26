@@ -86,33 +86,44 @@ example : InitialWorm.area = 1 / 8 := by
   native_decide
 
 
-/-- Half-side length of the square `LocationRange`, scaled from the area threshold. -/
-def offset := areaThreshold * 4
-#eval offset
+/-- Extent of `LocationRange` along the "wide" sides (positive `x`, positive `y`,
+and the long edge `x + y = offset`), scaled from the area threshold. -/
+def offset : ℚ := areaThreshold * 4
+
+/-- Extent of `LocationRange` along the "narrow" sides (negative `x`, negative `y`,
+and the short edge `x + y = -narrowOffset`). Equals `offset - 1/2`, where `1/2`
+is the leg length of `InitialWorm`. -/
+def narrowOffset : ℚ := offset - 1 / 2
 
 /--
-A convex polygon representing an upper bound
-on the range of locations a point in the working set can contain.
+A convex polygon describing exactly the points that can be added to `InitialWorm`
+without pushing the area of the resulting convex hull above `areaThreshold`.
 
-This is the square with vertices at (± offset, ± offset).
-Any point outside this square cannot be contained in a convex polygon
-that also contains the InitialWorm without exceeding the area threshold.
-(Because otherwise there would be a triangle that was too large.)
+Concretely it is the hexagon with vertices
 
-TODO We could potentially optimize this to the smallest polygon for which the above is true.
-Which would in turn let us improve the distance cutoff
-and thus reduce the fineness needed in angle discretization.
+  (offset, -narrowOffset), (offset, 0),       (0, offset),
+  (-narrowOffset, offset), (-narrowOffset, 0), (0, -narrowOffset).
+
+Every edge of this hexagon lies on the level set
+`area(hull(InitialWorm ∪ {p})) = areaThreshold`, so any point strictly outside
+exceeds the threshold (witness: `area_hull_initialWorm_insert_gt_areaThreshold`).
+The asymmetry comes from `InitialWorm` being the right triangle with legs along
+the positive axes: outside the hypotenuse `x + y = 1/2` the hull grows fastest,
+so the hexagon extends to `offset` there, while in the third quadrant — where
+the hull only loses the origin vertex — it extends only to `narrowOffset`.
 -/
 def LocationRange : ConvexPolygon where
-  vertex_count := 4
+  vertex_count := 6
   vertex_count_pos := inferInstance
   three_le_vertex_count := by norm_num
   vertices := fun i =>
     match i with
-    | ⟨0, _⟩ => ![-offset, -offset]
-    | ⟨1, _⟩ => ![offset, -offset]
-    | ⟨2, _⟩ => ![offset, offset]
-    | ⟨3, _⟩ => ![-offset, offset]
+    | ⟨0, _⟩ => ![offset, -narrowOffset]
+    | ⟨1, _⟩ => ![offset, 0]
+    | ⟨2, _⟩ => ![0, offset]
+    | ⟨3, _⟩ => ![-narrowOffset, offset]
+    | ⟨4, _⟩ => ![-narrowOffset, 0]
+    | ⟨5, _⟩ => ![0, -narrowOffset]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
   vertices_extremeRationalPoints := by native_decide
@@ -125,5 +136,19 @@ An upper bound on the distance from the origin for points in the LocationRange
 -/
 def distanceCutoff : ℚ := offset * upperBoundSqrtTwo
 
+/--
+If a rational point `p` lies outside `LocationRange`, then the convex hull of
+`p` together with the vertices of `InitialWorm` has area strictly greater than
+`areaThreshold`.
+
+This is the defining property of `LocationRange`: it bounds the set of points
+that any convex polygon containing `InitialWorm` can also include without
+exceeding the area threshold.
+-/
+theorem area_hull_initialWorm_insert_gt_areaThreshold
+    {p : RationalPoint} (hp : LocationRange.contains p = false) :
+    shoelaceArea (convexHullRationalPoints (p :: InitialWorm.vertex_list)) >
+      areaThreshold := by
+  sorry
 
 end Moser
