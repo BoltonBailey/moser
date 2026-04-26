@@ -125,5 +125,19 @@ An upper bound on the distance from the origin for points in the LocationRange
 -/
 def distanceCutoff : ℚ := offset * upperBoundSqrtTwo
 
+/--
+If a rational point `p` lies outside `LocationRange`, then the convex hull of
+`p` together with the vertices of `InitialWorm` has area strictly greater than
+`areaThreshold`.
+
+This is the defining property of `LocationRange`: it bounds the set of points
+that any convex polygon containing `InitialWorm` can also include without
+exceeding the area threshold.
+-/
+theorem area_hull_initialWorm_insert_gt_areaThreshold
+    {p : RationalPoint} (hp : LocationRange.contains p = false) :
+    shoelaceArea (convexHullRationalPoints (p :: InitialWorm.vertex_list)) >
+      areaThreshold := by
+  sorry
 
 end Moser
