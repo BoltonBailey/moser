@@ -1,7 +1,34 @@
 {
-  "title": "computing polygon of allowable additions",
+  "title": "Computing the polygon of allowable additions",
   "branch": "numina/computing-polygon-of-allowable-additions",
   "source_type": "latex",
   "notes": "",
-  "entries": []
+  "entries": [
+    {
+      "label": "def:growableDistance",
+      "kind": "definition",
+      "title": "Growable distance to the left of a vertex pair"
+    },
+    {
+      "label": "def:growthHalfspace",
+      "kind": "definition",
+      "title": "Growth half-space to the left of a vertex pair"
+    },
+    {
+      "label": "lem:threshold_violated_outside_growth_halfspace",
+      "kind": "lemma",
+      "title": "Threshold violated outside a growth half-space"
+    },
+    {
+      "label": "def:growthHalfspaceIntersection",
+      "kind": "definition",
+      "title": "Growth half-space intersection polygon"
+    },
+    {
+      "label": "lem:threshold_violated_outside_growth_intersection",
+      "kind": "lemma",
+      "title": "Threshold violated outside the growth half-space intersection"
+    }
+  ],
+  "leanModule": "Moser.Geometry.AllowableAdditions"
 }

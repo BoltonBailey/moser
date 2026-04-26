@@ -3,6 +3,99 @@
 
 \begin{document}
 
-% Your blueprint will go here.
+\section{Convex hull growth}
+
+Given an area threshold $A_*$ and a nontrivial convex polygon of area below
+the threshold, there is a limited region of the plane such that adjoining a
+point in that region to the polygon and taking the convex hull keeps the
+resulting area below $A_*$. Our goal in this chapter is to describe this
+region as the intersection of a finite collection of half-spaces, one for
+each ordered pair of vertices of the input polygon, computed up to a
+specified rational tolerance $\tau$.
+
+\begin{definition}[Growable distance to the left of a vertex pair]
+    \label{def:growableDistance}
+    Let $P$ be a convex polygon, $A_*$ a rational area threshold, and
+    $V_i, V_j$ an ordered pair of (not necessarily adjacent) vertices of
+    $P$. Let $\tau > 0$ be a rational tolerance. The
+    \emph{growable distance to the left of the directed line
+    $V_i \to V_j$} is a rational number $d \ge 0$ such that, writing $A_R$
+    for the area of $P$ lying weakly to the right of the directed line
+    $V_i V_j$ and $T(d)$ for the area of the triangle formed by $V_i$,
+    $V_j$, and a point at perpendicular distance $d$ to the left of the
+    line, we have
+    \[ A_R + T(d) \;\ge\; A_* , \]
+    and $d$ is within the tolerance $\tau$ of the unique exact value for
+    which equality holds.
+\end{definition}
+
+\begin{definition}[Growth half-space to the left of a vertex pair]
+    \label{def:growthHalfspace}
+    \uses{def:growableDistance}
+    Let $P$, $A_*$, $\tau$, and $V_i, V_j$ be as in
+    Definition~\ref{def:growableDistance}, with growable distance $d$.
+    The \emph{growth half-space} to the left of the pair $V_i, V_j$ is
+    the closed half-space lying to the left of (and including) the line
+    parallel to $V_i \to V_j$ at perpendicular distance $d$ on the left
+    side of the directed line.
+\end{definition}
+
+\begin{lemma}[Threshold violated outside a growth half-space]
+    \label{lem:threshold_violated_outside_growth_halfspace}
+    \uses{def:growthHalfspace}
+    Let $P$ be a convex polygon with rational vertices, $A_*$ a rational
+    area threshold, $\tau > 0$ a rational tolerance, and $V_i, V_j$ an
+    ordered pair of vertices of $P$. If a rational point $p$ lies
+    strictly outside the growth half-space to the left of $V_i, V_j$
+    associated with $P$, $A_*$, and $\tau$, then the area of the convex
+    hull of $P \cup \{p\}$ is strictly greater than $A_*$.
+\end{lemma}
+\begin{proof}
+    \uses{def:growableDistance, def:growthHalfspace}
+    By the definition of the growth half-space, $p$ lying strictly
+    outside means that the perpendicular signed distance from $p$ to the
+    directed line $V_i V_j$, measured to the left, exceeds the growable
+    distance $d$. The convex hull of $P$ together with $p$ contains both
+    the portion of $P$ lying weakly to the right of the line $V_i V_j$
+    (of area $A_R$) and the triangle with vertices $V_i$, $V_j$, $p$,
+    and these two regions intersect only along the segment $V_i V_j$, a
+    set of measure zero. The triangle has base $|V_i V_j|$ and height
+    equal to the left-distance from $p$ to the line, hence area strictly
+    greater than $T(d)$. Therefore the hull's area is at least
+    $A_R + T(\text{left-distance of } p) > A_R + T(d) \ge A_*$.
+\end{proof}
+
+\begin{definition}[Growth half-space intersection polygon]
+    \label{def:growthHalfspaceIntersection}
+    \uses{def:growthHalfspace}
+    Let $P$ be a convex polygon, $A_*$ a rational area threshold, and
+    $\tau > 0$ a rational tolerance. The
+    \emph{growth half-space intersection} associated to $P$, $A_*$, and
+    $\tau$ is the intersection, over all ordered pairs $(V_i, V_j)$ of
+    distinct vertices of $P$, of the growth half-spaces to the left of
+    those pairs. Equivalently, it is the set of points $p$ such that for
+    every ordered vertex pair $(V_i, V_j)$, the point $p$ lies in the
+    growth half-space to the left of $V_i, V_j$.
+\end{definition}
+
+\begin{lemma}[Threshold violated outside the growth half-space intersection]
+    \label{lem:threshold_violated_outside_growth_intersection}
+    \uses{def:growthHalfspaceIntersection}
+    Let $P$ be a convex polygon with rational vertices, $A_*$ a rational
+    area threshold, and $\tau > 0$ a rational tolerance. If a rational
+    point $p$ lies outside the growth half-space intersection of $P$,
+    $A_*$, and $\tau$, then the area of the convex hull of
+    $P \cup \{p\}$ is strictly greater than $A_*$.
+\end{lemma}
+\begin{proof}
+    \uses{lem:threshold_violated_outside_growth_halfspace,
+        def:growthHalfspaceIntersection}
+    If $p$ is outside the intersection, then there exists at least one
+    ordered vertex pair $(V_i, V_j)$ such that $p$ lies strictly outside
+    the growth half-space to the left of $(V_i, V_j)$. By
+    Lemma~\ref{lem:threshold_violated_outside_growth_halfspace}, the
+    convex hull of $P \cup \{p\}$ then has area strictly greater than
+    $A_*$.
+\end{proof}
 
 \end{document}

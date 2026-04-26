@@ -1,0 +1,8 @@
+{
+  "label": "def:growableDistance",
+  "kind": "definition",
+  "title": "Growable distance to the left of a vertex pair",
+  "uses": [],
+  "statement": "Let $P$ be a convex polygon, $A_*$ a rational area threshold, and\n    $V_i, V_j$ an ordered pair of (not necessarily adjacent) vertices of\n    $P$. Let $\\tau > 0$ be a rational tolerance. The\n    \\emph{growable distance to the left of the directed line\n    $V_i \\to V_j$} is a rational number $d \\ge 0$ such that, writing $A_R$\n    for the area of $P$ lying weakly to the right of the directed line\n    $V_i V_j$ and $T(d)$ for the area of the triangle formed by $V_i$,\n    $V_j$, and a point at perpendicular distance $d$ to the left of the\n    line, we have\n    \\[ A_R + T(d) \\;\\ge\\; A_* , \\]\n    and $d$ is within the tolerance $\\tau$ of the unique exact value for\n    which equality holds.",
+  "proof": null
+}
