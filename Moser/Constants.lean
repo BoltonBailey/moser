@@ -54,7 +54,7 @@ def SquareWorm : ConvexPolygon where
 A right triangle with legs of length 1/3 and 2/3.
 TODO parameterize this and the above worms by leg lengths, and then optimize over those parameters.
 -/
-def RightTriangleOntThirdWorm : ConvexPolygon where
+def RightTriangleOneThirdWorm : ConvexPolygon where
   vertex_count := 3
   vertex_count_pos := inferInstance
   three_le_vertex_count := by norm_num

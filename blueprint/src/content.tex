@@ -10,21 +10,19 @@
 
 note: this blueprint was drafted by Claude
 
-\emph{Moser's worm problem} asks for the convex region of smallest area in
-the plane that contains a congruent copy of every rectifiable curve of unit
+\emph{Moser's worm problem} asks for the (convex) region of smallest area in
+the plane that contains a rotated and/or translated copy of every curve of unit
 length (a \emph{worm}). Any such region is called a \emph{Moser set}. The
 exact optimum is unknown; the best published upper and lower bounds sandwich
-it in a narrow interval. This project pursues a \emph{computer-checked}
-lower bound for the area of a Moser set by discretising the space of
-candidate convex hulls and the space of planar isometries, and then
-verifying that no sufficiently small polygon can contain every unit worm.
+it between $0.232239$ and $\pi/12$. 
 
-The strategy is iterative pruning of a \emph{working set} of convex
-candidate polygons: polygons are dropped when they are too large, when
-another candidate is a subset, or when a new worm fails to embed inside
-them. At termination the working set is empty, which (modulo the
-discretisation error bookkeeping) rules out all Moser sets below the area
-threshold. We currently target the threshold $0.232240$.
+This project pursues a \emph{computer-checked} improvement to the lower bound, by showing that every Moser set must contain a convex polygon of area at least $0.232240$. 
+
+The main idea is to discretise the problem. We create and iteratively mutate a \emph{working set} of convex
+candidate polygons satisfying the property that which any convex Moser set of size below $0.232240$ must contain a copy of at least one of the candidates. 
+The working set is initialised with a single polygon, and then repeatedly mutated
+by replacing elements with collections of larger elements in ways that preserve the property, all the while removing any element of size greater than $0.232240$.
+If we can find a sequence of mutations that ends with an empty working set, we may conclude that no convex Moser set of area below $0.232240$ exists.
 
 \chapter{Rational planar geometry}
 
@@ -312,7 +310,7 @@ only through explicit approximation bounds.
 
 \begin{definition}[Benchmark worms]
   \label{def:benchmark-worms}
-  \lean{Moser.IsocelesRightTriangleWorm, Moser.SquareWorm, Moser.RightTriangleOntThirdWorm, Moser.InitialWorm}
+  \lean{Moser.IsocelesRightTriangleWorm, Moser.SquareWorm, Moser.RightTriangleOneThirdWorm, Moser.InitialWorm}
   \leanok
   \uses{def:convex-polygon}
   Three concrete convex polygons are fixed as benchmark worms:
