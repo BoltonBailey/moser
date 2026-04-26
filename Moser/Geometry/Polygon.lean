@@ -683,13 +683,53 @@ Sub-lemmas that look helpful:
 * `IsCyclicCCWChain.injective` — strict cyclic CCW with `n ≥ 3` forces vertex
   injectivity (likely already implied by `nodup`, so just plumbed through).
 -/
+/--
+Helper lemma for `cyclicCCWChain_implies_isCCWPolygon`: for a cyclic CCW chain
+on `n` vertices, every vertex at gap `k` (with `2 ≤ k ≤ n - 1`) from the
+starting vertex `i` is strictly to the left of the edge `vᵢ → vᵢ₊₁`.
+
+The base case `k = 2` is the chain hypothesis. The inductive step requires the
+deep geometric content connecting local CCW turns to global convexity (e.g. via
+ear removal or a winding-number argument).
+-/
+private lemma cyclicCCWChain_gap_ccw
+    {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
+    (vertices : Fin n → RationalPoint)
+    (hinj : Function.Injective vertices)
+    (h_chain : IsCyclicCCWChain vertices)
+    (i : Fin n) (k : ℕ) (hk_lo : 2 ≤ k) (hk_hi : k ≤ n - 1) :
+    RationalPoint.ccw (vertices i) (vertices (i + 1))
+        (vertices (i + (k : Fin n))) = true := by
+  sorry
+
 lemma cyclicCCWChain_implies_isCCWPolygon
     {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
     (vertices : Fin n → RationalPoint)
     (hinj : Function.Injective vertices)
     (h_chain : IsCyclicCCWChain vertices) :
     IsCCWPolygon vertices := by
-  sorry
+  intro i j hji hji1
+  -- Reformulate `j` as `i + k` for `k = (j - i).val`. Then 2 ≤ k ≤ n - 1
+  -- (k ≠ 0 since j ≠ i; k ≠ 1 since j ≠ i + 1) so the helper lemma applies.
+  set k : ℕ := (j - i).val with hk_def
+  have hk_lt : k < n := (j - i).isLt
+  have hj_eq : j = i + (k : Fin n) := by
+    have hcast : (k : Fin n) = j - i := by
+      rw [hk_def]; exact Fin.cast_val_eq_self (j - i)
+    rw [hcast]
+    abel
+  have hk_ne_zero : k ≠ 0 := by
+    intro hk0; apply hji
+    have hzero : (k : Fin n) = 0 := by rw [hk0]; simp
+    rw [hj_eq, hzero, add_zero]
+  have hk_ne_one : k ≠ 1 := by
+    intro hk1; apply hji1
+    have hone : (k : Fin n) = 1 := by rw [hk1]; simp
+    rw [hj_eq, hone]
+  have hk_ge_2 : 2 ≤ k := by omega
+  have hk_le : k ≤ n - 1 := by omega
+  rw [hj_eq]
+  exact cyclicCCWChain_gap_ccw h3 vertices hinj h_chain i k hk_ge_2 hk_le
 
 /--
 Algorithm-correctness statement for `convexHullRationalPoints`: when the hull has
