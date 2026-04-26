@@ -29,5 +29,8 @@
       "kind": "theorem",
       "title": "Points outside the location range blow up the hull area"
     }
-  ]
+  ],
+  "settings": {
+    "pr_mode": "ready"
+  }
 }
