@@ -1,6 +1,7 @@
 import Moser.Constants
 import Moser.DirectIsometry.Basic
 import Moser.DirectIsometry.Discretization
+import Moser.Geometry.AllowableAdditions
 import Moser.Geometry.HalfSpaces
 import Moser.Geometry.Polygon
 import Moser.Geometry.PolygonArea
