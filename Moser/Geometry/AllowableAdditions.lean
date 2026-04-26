@@ -100,7 +100,7 @@ def growthHalfspaceOfPair
     { basepoint := ![0, 0]
       normal := ![1, 0]
       normal_pos := by
-        unfold RationalPoint.lengthSq RationalPoint.dotProduct
+        unfold RationalPoint.lengthSq
         simp }
 
 /--
