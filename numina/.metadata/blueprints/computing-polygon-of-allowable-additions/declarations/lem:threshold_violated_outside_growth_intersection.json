@@ -1,0 +1,13 @@
+{
+  "label": "lem:threshold_violated_outside_growth_intersection",
+  "kind": "lemma",
+  "title": "Threshold violated outside the growth half-space intersection",
+  "uses": [
+    "def:growthHalfspaceIntersection"
+  ],
+  "statement": "Let $P$ be a convex polygon with rational vertices, $A_*$ a rational\n    area threshold, and $\\tau > 0$ a rational tolerance. If a rational\n    point $p$ lies outside the growth half-space intersection of $P$,\n    $A_*$, and $\\tau$, then the area of the convex hull of\n    $P \\cup \\{p\\}$ is strictly greater than $A_*$.",
+  "proof": "If $p$ is outside the intersection, then there exists at least one\n    ordered vertex pair $(V_i, V_j)$ such that $p$ lies strictly outside\n    the growth half-space to the left of $(V_i, V_j)$. By\n    Lemma~\\ref{lem:threshold_violated_outside_growth_halfspace}, the\n    convex hull of $P \\cup \\{p\\}$ then has area strictly greater than\n    $A_*$.",
+  "leanDeclaration": "ConvexPolygon.threshold_violated_outside_growth_intersection",
+  "leanFile": "Moser/Geometry/AllowableAdditions.lean",
+  "assessment": "EASY"
+}

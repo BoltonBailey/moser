@@ -1,0 +1,13 @@
+{
+  "label": "lem:threshold_violated_outside_growth_halfspace",
+  "kind": "lemma",
+  "title": "Threshold violated outside a growth half-space",
+  "uses": [
+    "def:growthHalfspace"
+  ],
+  "statement": "Let $P$ be a convex polygon with rational vertices, $A_*$ a rational\n    area threshold, $\\tau > 0$ a rational tolerance, and $V_i, V_j$ an\n    ordered pair of vertices of $P$. If a rational point $p$ lies\n    strictly outside the growth half-space to the left of $V_i, V_j$\n    associated with $P$, $A_*$, and $\\tau$, then the area of the convex\n    hull of $P \\cup \\{p\\}$ is strictly greater than $A_*$.",
+  "proof": "By the definition of the growth half-space, $p$ lying strictly\n    outside means that the perpendicular signed distance from $p$ to the\n    directed line $V_i V_j$, measured to the left, exceeds the growable\n    distance $d$. The convex hull of $P$ together with $p$ contains both\n    the portion of $P$ lying weakly to the right of the line $V_i V_j$\n    (of area $A_R$) and the triangle with vertices $V_i$, $V_j$, $p$,\n    and these two regions intersect only along the segment $V_i V_j$, a\n    set of measure zero. The triangle has base $|V_i V_j|$ and height\n    equal to the left-distance from $p$ to the line, hence area strictly\n    greater than $T(d)$. Therefore the hull's area is at least\n    $A_R + T(\\text{left-distance of } p) > A_R + T(d) \\ge A_*$.",
+  "leanDeclaration": "ConvexPolygon.threshold_violated_outside_growth_halfspace",
+  "leanFile": "Moser/Geometry/AllowableAdditions.lean",
+  "assessment": "HARD"
+}
