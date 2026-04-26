@@ -41,7 +41,7 @@ with the closed half-space weakly to the right of the directed line through
 `V_i → V_j`. Any concrete implementation that computes this rational area
 from the polygon and the two vertex indices is acceptable.
 -/
-noncomputable def areaWeaklyRightOfVertexPair
+def areaWeaklyRightOfVertexPair
     (poly : ConvexPolygon) (i j : Fin poly.vertex_count) (_hij : i ≠ j) : ℚ :=
   sorry
 
@@ -54,7 +54,7 @@ vertices `V_i, V_j` and a point at perpendicular distance `d` to the left of
 the line), and such that `d` is within tolerance `τ` of the unique exact
 value `d_*` for which equality `A_R + T(d_*) = A_*` holds.
 -/
-noncomputable def growableDistance
+def growableDistance
     (poly : ConvexPolygon) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) : ℚ :=
   sorry
@@ -76,10 +76,32 @@ If the growable distance is zero we return the closed half-space weakly to
 the left of the directed segment from `V_i` to `V_j`; otherwise we shift its
 boundary line outward by the growable distance.
 -/
-noncomputable def growthHalfspace
+def growthHalfspace
     (poly : ConvexPolygon) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) : ClosedHalfSpace :=
   sorry
+
+/--
+A computable wrapper around `growthHalfspace` that does not depend on a proof
+that `i ≠ j`. When `i = j` we return an arbitrary default closed half-space
+(the whole-plane representation is not at hand, so we just pick a fixed
+half-space to keep this total). This is only used to enumerate the per-pair
+half-spaces over `List.finRange poly.vertex_count` without carrying the
+`i ≠ j` proof through the iteration.
+-/
+def growthHalfspaceOfPair
+    (poly : ConvexPolygon) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance)
+    (i j : Fin poly.vertex_count) : ClosedHalfSpace :=
+  if hij : i ≠ j then
+    growthHalfspace poly areaThreshold tolerance htol i j hij
+  else
+    -- Default: a fixed half-space, chosen so the structure is well-formed.
+    -- Concretely, the closed half-space `{ p | p₀ ≥ 0 }`.
+    { basepoint := ![0, 0]
+      normal := ![1, 0]
+      normal_pos := by
+        unfold RationalPoint.lengthSq RationalPoint.dotProduct
+        simp }
 
 /--
 **Threshold violated outside a growth half-space.**
@@ -105,28 +127,39 @@ lemma threshold_violated_outside_growth_halfspace
 
 /--
 The growth half-space intersection associated to `P`, `A_*`, and `τ`: the
-set of rational points `p` such that for every ordered pair `(V_i, V_j)` of
-distinct vertices of `P`, the point `p` lies in the growth half-space to the
-left of `(V_i, V_j)`.
+convex polygon (if any) obtained by intersecting the per-pair growth
+half-spaces over all ordered pairs `(V_i, V_j)` of distinct vertices of `P`.
+
+The pair list is enumerated by iterating `List.finRange poly.vertex_count`
+twice and filtering to ordered pairs `i ≠ j`. The resulting list of closed
+half-spaces is fed to `ConvexPolygon.ofHalfSpaces`, which returns `none` if
+the intersection is degenerate.
 -/
-noncomputable def growthHalfspaceIntersection
+def growthHalfspaceIntersection
     (poly : ConvexPolygon) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance) :
-    Set RationalPoint :=
-  { p | ∀ (i j : Fin poly.vertex_count) (hij : i ≠ j),
-      (growthHalfspace poly areaThreshold tolerance htol i j hij).contains p }
+    Option ConvexPolygon :=
+  let indices := List.finRange poly.vertex_count
+  let halfSpaces : List ClosedHalfSpace :=
+    indices.flatMap (fun i =>
+      (indices.filter (fun j => decide (i ≠ j))).map (fun j =>
+        growthHalfspaceOfPair poly areaThreshold tolerance htol i j))
+  ConvexPolygon.ofHalfSpaces halfSpaces
 
 /--
 **Threshold violated outside the growth half-space intersection.**
 
 Let `P` be a convex polygon with rational vertices, `A_*` a rational area
-threshold, and `τ > 0` a rational tolerance. If a rational point `p` lies
-outside the growth half-space intersection of `P`, `A_*`, and `τ`, then the
-area of the convex hull of `P ∪ {p}` is strictly greater than `A_*`.
+threshold, and `τ > 0` a rational tolerance. If
+`growthHalfspaceIntersection` returns `some intersectionPoly` and a rational
+point `p` lies outside `intersectionPoly`, then the area of the convex hull
+of `P ∪ {p}` is strictly greater than `A_*`.
 -/
 lemma threshold_violated_outside_growth_intersection
     (poly : ConvexPolygon) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance)
-    (p : RationalPoint)
-    (hp : p ∉ growthHalfspaceIntersection poly areaThreshold tolerance htol) :
+    (p : RationalPoint) (intersectionPoly : ConvexPolygon)
+    (h_inter : growthHalfspaceIntersection poly areaThreshold tolerance htol
+      = some intersectionPoly)
+    (hp : ¬ intersectionPoly.contains p) :
     ∀ hull : ConvexPolygon,
       ConvexPolygon.ofList (p :: poly.vertex_list) = some hull →
       areaThreshold < hull.area := by
