@@ -4,3 +4,6 @@ This repository (or at least it's initial commit) is a result of me telling clau
 
 Update: I have now also made some changes independent of this first attempt.
 
+Useful pdf links:
+
+- <https://scispace.com/pdf/the-worm-problem-of-leo-moser-28wawo4xwt.pdf>
