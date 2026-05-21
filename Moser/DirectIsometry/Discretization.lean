@@ -134,6 +134,6 @@ def defaultDiscretization : List DirectIsometry :=
 
 #print sorries defaultDiscretization
 
-#eval (defaultDiscretization).length -- about 4.4 million
+-- #eval (defaultDiscretization).length -- about 750k
 
 end Moser
