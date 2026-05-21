@@ -447,6 +447,35 @@ the list.
   of its polygons (taken as $0$ on the empty set).
 \end{definition}
 
+\chapter{Convex hull growth}
+
+Given an areaThreshold and a nontrivial convex polygon of area below the threshold, 
+there is a limited set of points
+such that if we take the hull of such a point with the polygon, the area of resulting polygon is less than the area threshhold.
+In fact, this set of points
+
+\begin{definition}[Growable distance to left of a pair]
+  Given a convex polygon $P$ and an area threshold $A_*$, and an ordered pair of vertices $V_i, V_j$ (not necessarily adjacent) of $P$, the growable distance to the left of the directed line $V_i \to V_j$ is a distance $d$ such that the sum of the area of $P$ to the right of the line $V_i \to V_j$ and the area of the triangle formed by $V_i, V_j$ and a point at distance $d$ to the left of the line is at least $A_*$ (and is within a tolerance of the exact such distance).
+\end{definition}
+
+\begin{definition}[Growth half-spaces to the left of a pairs]
+  The growth half space to the left of a pair of vertices $V_i, V_j$ of a convex polygon $P$ and tolerance $\tau$ is the half-space to the left of the line parallel to $V_i \to V_j$ at distance $d$ from it, where $d$ is the growable distance to the left of the pair. 
+\end{definition}
+
+\begin{lemma}[Threshold violated outside Growth half-space]
+  If we add a point outside the growth half-space to the left of a pair of vertices $V_i, V_j$ of a convex polygon $P$ and tolerance $\tau$, then the area of the convex hull of $P$ and that point is greater than $A_*$. 
+\end{lemma}
+
+\begin{definition}[Growth half-space intersection polygon]
+  The growth half-space intersection of a convex polygon $P$ and tolerance $\tau$ is the intersection of the growth half-spaces to the left of all pairs of vertices of $P$ and tolerance $\tau$.
+\end{definition}
+
+\begin{lemma}[Threshold violated outside growth half-space intersection]
+  If we add a point outside the growth half-space intersection of a convex polygon $P$ and tolerance $\tau$, then the area of the convex hull of $P$ and that point is greater than $A_*$.
+\end{lemma}
+
+
+
 \section{Pruning operations}
 
 \begin{definition}[Big set removal]
@@ -514,6 +543,9 @@ the list.
   removal. \texttt{addWormAndCleanup} adds a worm and then cleans up.
 \end{definition}
 
+
+
+
 \chapter{Lower bound theorem}
 
 The end goal of the working set iteration is the following claim.
@@ -551,3 +583,4 @@ The end goal of the working set iteration is the following claim.
   with further worms arising from the enumeration scheme in
   \texttt{Moser.Worm.Enumeration} (currently stubbed).
 \end{proposition}
+
