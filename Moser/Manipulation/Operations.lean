@@ -25,6 +25,8 @@ def supersetRemoval (s : WorkingSet) : WorkingSet :=
 
 /--
 given a convex polygon `p` and a worm hull `w` and a positive rational `ε`, return a List of convex polygons obtained by discretizing the space of direct isometries and applying them to a shrunk version of `w`, then taking the convex hull of p with the result.
+
+TODO change the isometry discretization to only include isometries in the allowed set of `p`, rather than the initialworm
 -/
 def wormReplacement (p : ConvexPolygon) (w : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) : List ConvexPolygon :=
   let isometries := discretizeIsometries epsilon
