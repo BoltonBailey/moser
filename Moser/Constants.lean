@@ -7,6 +7,10 @@ import Moser.Geometry.PolygonArea
 This file defines the key constants used in the computational approach:
 - `areaThreshold`: Maximum area for candidate Moser sets
 - `distanceCutoff`: Maximum distance from origin for polygon vertices
+
+These concrete polygons live over `ℚ`, since their well-formedness proofs
+(`nodup`, `vertices_extremePoints`) are discharged by `native_decide`,
+which only computes over a concrete decidable representation.
 -/
 
 namespace Moser
@@ -20,7 +24,7 @@ def areaThreshold : ℚ := .divInt 232240 1000000
 /--
 The isoceles right triangle with legs of length 1/2.
 -/
-def IsocelesRightTriangleWorm : ConvexPolygon where
+def IsocelesRightTriangleWorm : ConvexPolygon ℚ where
   vertex_count := 3
   vertex_count_pos := inferInstance
   three_le_vertex_count := by norm_num
@@ -31,12 +35,12 @@ def IsocelesRightTriangleWorm : ConvexPolygon where
     | ⟨2, _⟩ => ![0, .divInt 1 2]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
-  vertices_extremeRationalPoints := by native_decide
+  vertices_extremePoints := by native_decide
 
 /--
 A square of side length 1/3.
 -/
-def SquareWorm : ConvexPolygon where
+def SquareWorm : ConvexPolygon ℚ where
   vertex_count := 4
   vertex_count_pos := inferInstance
   three_le_vertex_count := by norm_num
@@ -48,13 +52,13 @@ def SquareWorm : ConvexPolygon where
     | ⟨3, _⟩ => ![0, .divInt 1 3]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
-  vertices_extremeRationalPoints := by native_decide
+  vertices_extremePoints := by native_decide
 
 /--
 A right triangle with legs of length 1/3 and 2/3.
 TODO parameterize this and the above worms by leg lengths, and then optimize over those parameters.
 -/
-def RightTriangleOneThirdWorm : ConvexPolygon where
+def RightTriangleOneThirdWorm : ConvexPolygon ℚ where
   vertex_count := 3
   vertex_count_pos := inferInstance
   three_le_vertex_count := by norm_num
@@ -65,7 +69,7 @@ def RightTriangleOneThirdWorm : ConvexPolygon where
     | ⟨2, _⟩ => ![0, .divInt 2 3]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
-  vertices_extremeRationalPoints := by native_decide
+  vertices_extremePoints := by native_decide
 
 /--
 The "initial worm" is a worm that we
@@ -79,7 +83,7 @@ We could consider redefining this when optimizing.
 For now, we take it to be the isoceles right triangle worm,
 since this seems to work well.
 -/
-def InitialWorm : ConvexPolygon := IsocelesRightTriangleWorm
+def InitialWorm : ConvexPolygon ℚ := IsocelesRightTriangleWorm
 
 -- Example computation: area of InitialWorm
 example : InitialWorm.area = 1 / 8 := by
@@ -112,7 +116,7 @@ the positive axes: outside the hypotenuse `x + y = 1/2` the hull grows fastest,
 so the hexagon extends to `offset` there, while in the third quadrant — where
 the hull only loses the origin vertex — it extends only to `narrowOffset`.
 -/
-def LocationRange : ConvexPolygon where
+def LocationRange : ConvexPolygon ℚ where
   vertex_count := 6
   vertex_count_pos := inferInstance
   three_le_vertex_count := by norm_num
@@ -126,7 +130,7 @@ def LocationRange : ConvexPolygon where
     | ⟨5, _⟩ => ![0, -narrowOffset]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
-  vertices_extremeRationalPoints := by native_decide
+  vertices_extremePoints := by native_decide
 
 /-- A rational upper bound on `√2`, accurate to 15 decimal places. -/
 def upperBoundSqrtTwo : ℚ  := .divInt 1414213562373095 1000000000000000
@@ -137,7 +141,7 @@ An upper bound on the distance from the origin for points in the LocationRange
 def distanceCutoff : ℚ := offset * upperBoundSqrtTwo
 
 /--
-If a rational point `p` lies outside `LocationRange`, then the convex hull of
+If a point `p` lies outside `LocationRange`, then the convex hull of
 `p` together with the vertices of `InitialWorm` has area strictly greater than
 `areaThreshold`.
 
@@ -146,8 +150,8 @@ that any convex polygon containing `InitialWorm` can also include without
 exceeding the area threshold.
 -/
 theorem area_hull_initialWorm_insert_gt_areaThreshold
-    {p : RationalPoint} (hp : LocationRange.contains p = false) :
-    shoelaceArea (convexHullRationalPoints (p :: InitialWorm.vertex_list)) >
+    {p : Point ℚ} (hp : LocationRange.contains p = false) :
+    shoelaceArea (convexHullPoints (p :: InitialWorm.vertex_list)) >
       areaThreshold := by
   sorry
 

@@ -11,12 +11,10 @@ This file defines the WorkingSet type with its three invariants.
 
 namespace Moser
 
-open Rat
-
 /-- The working set of polygons maintained during the algorithm -/
 structure WorkingSet where
   /-- The set of candidate polygons -/
-  polygons : List ConvexPolygon
+  polygons : List (ConvexPolygon ℚ)
   -- Invariant 1: All polygons are convex (guaranteed by type)
   -- Invariant 2: All contain InitialWorm via some isometry
   -- containsInitialWorm : ∀ p ∈ polygons, ∃ iso, InitialWorm ⊆ iso.apply(p)
@@ -36,7 +34,7 @@ def isEmpty (s : WorkingSet) : Bool :=
   s.polygons.isEmpty
 
 /-- Get the polygon with minimum area -/
-def minAreaPolygon (s : WorkingSet) : Option ConvexPolygon :=
+def minAreaPolygon (s : WorkingSet) : Option (ConvexPolygon ℚ) :=
   s.polygons.foldl
     (fun best p =>
       match best with

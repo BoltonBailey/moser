@@ -5,6 +5,10 @@ import Moser.Geometry.Polygon
 # Worms
 
 This file defines worms as piecewise linear paths of unit length.
+
+Worms live over `ℚ` because the length approximation `sqrtApprox` (Newton
+iteration) is intrinsically rational; for an upgrade to algebraic numbers the
+length should be computed exactly and the approximation machinery dropped.
 -/
 
 namespace Moser
@@ -29,11 +33,11 @@ def sqrtApprox (s : ℚ) (epsilon : ℚ) (fuel : ℕ := 100) : ℚ :=
 
 /-- Approximate the Euclidean distance between two points to within epsilon.
     Returns a rational d such that |d - dist(p,q)| < epsilon -/
-def distanceApprox (p q : RationalPoint) (epsilon : ℚ) : ℚ :=
-  sqrtApprox (RationalPoint.distSq p q) epsilon
+def distanceApprox (p q : Point ℚ) (epsilon : ℚ) : ℚ :=
+  sqrtApprox (Point.distSq p q) epsilon
 
 /-- Compute an approximate total length of a path given by vertices -/
-def totalLengthApprox (vertices : List RationalPoint) (epsilon : ℚ) : ℚ :=
+def totalLengthApprox (vertices : List (Point ℚ)) (epsilon : ℚ) : ℚ :=
   if vertices.length < 2 then 0
   else
     let pairs := List.zip vertices vertices.tail
@@ -44,18 +48,18 @@ def totalLengthApprox (vertices : List RationalPoint) (epsilon : ℚ) : ℚ :=
 /-- A worm is a piecewise linear path (at least 2 vertices) -/
 structure Worm where
   /-- The vertices defining the path -/
-  vertices : List RationalPoint
+  vertices : List (Point ℚ)
   /-- The path has at least 2 vertices -/
   nonempty : vertices.length ≥ 2
 
 namespace Worm
 
 /-- Scale a point by a rational factor -/
-def scaleRationalPoint (s : ℚ) (p : RationalPoint) : RationalPoint := ![s * p 0, s * p 1]
+def scalePoint (s : ℚ) (p : Point ℚ) : Point ℚ := ![s * p 0, s * p 1]
 
 /-- Scale all vertices of a worm by a factor -/
 def scale (w : Worm) (s : ℚ) : Worm :=
-  { vertices := w.vertices.map (scaleRationalPoint s)
+  { vertices := w.vertices.map (scalePoint s)
     nonempty := by simp only [List.length_map, ge_iff_le]; exact w.nonempty }
 
 /-- Get the approximate total length of the worm -/
@@ -71,10 +75,10 @@ def scaleToUnit (w : Worm) (epsilon : ℚ) : Worm :=
 
 
 /-- Convert worm vertices to a convex polygon -/
-def toConvexPolygon (w : Worm) : ConvexPolygon := sorry
+def toConvexPolygon (w : Worm) : ConvexPolygon ℚ := sorry
 
 /-- Get the convex hull as a ConvexPolygon -/
-def convexHullPolygon (w : Worm) : ConvexPolygon :=
+def convexHullPolygon (w : Worm) : ConvexPolygon ℚ :=
   w.toConvexPolygon
 
 end Worm
@@ -89,10 +93,10 @@ structure UnitWorm where
 namespace UnitWorm
 
 /-- Get the vertices of a unit worm -/
-def vertices (w : UnitWorm) : List RationalPoint := w.worm.vertices
+def vertices (w : UnitWorm) : List (Point ℚ) := w.worm.vertices
 
 /-- Convert to a convex polygon -/
-def toConvexPolygon (w : UnitWorm) : ConvexPolygon := w.worm.toConvexPolygon
+def toConvexPolygon (w : UnitWorm) : ConvexPolygon ℚ := w.worm.toConvexPolygon
 
 end UnitWorm
 

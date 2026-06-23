@@ -8,11 +8,13 @@ import Moser.DirectIsometry.Basic
 This file discretizes the space of direct planar isometries for computational purposes.
 
 We might assume that the isometries act on worms containing the origin.
+
+The discretisation lives over `ℚ`: the Taylor approximations for sin/cos and
+the rational grid are rational-specific. For an upgrade to algebraic numbers
+these approximations would be replaced by exact angles.
 -/
 
 namespace Moser
-
-open Rat
 
 /-- Rational approximation of π (355/113 is accurate to 6 decimal places) -/
 def piApprox : ℚ := 355 / 113
@@ -110,7 +112,7 @@ theorem angleGrid_spec (step : ℚ) (p : ℚ × ℚ) (hp : p ∈ angleGrid step)
 Discretize the space of planar isometries with given granularity
 TODO fold into the worm manipulations and optimize more finely.
 -/
-def discretizeIsometries (epsilon : ℚ) : List DirectIsometry :=
+def discretizeIsometries (epsilon : ℚ) : List (DirectIsometry ℚ) :=
   let angleStep := epsilon / 3
   let transStep := epsilon / 3
   -- Adjust angle step based on distance cutoff to ensure coverage
@@ -118,7 +120,7 @@ def discretizeIsometries (epsilon : ℚ) : List DirectIsometry :=
   let angles := angleGrid (angleStep / distanceCutoff)
   let gridCoordinates := rationalGrid (-distanceCutoff) distanceCutoff transStep
   let translations := (gridCoordinates.flatMap fun x =>
-    gridCoordinates.map fun y => ![x, y]).filter (LocationRange.contains)
+    gridCoordinates.map fun y => (![x, y] : Point ℚ)).filter (LocationRange.contains)
   angles.attach.flatMap fun ⟨angle, h⟩ =>
     translations.map fun t =>
         { cos := angle.1
@@ -129,7 +131,7 @@ def discretizeIsometries (epsilon : ℚ) : List DirectIsometry :=
           }
 
 /-- Discretize with a default epsilon -/
-def defaultDiscretization : List DirectIsometry :=
+def defaultDiscretization : List (DirectIsometry ℚ) :=
   discretizeIsometries (1 / 10)
 
 #print sorries defaultDiscretization

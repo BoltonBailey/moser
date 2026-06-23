@@ -10,7 +10,7 @@ import Moser.DirectIsometry.Discretization
 
 namespace Moser
 
-open Rat Option
+open Option
 
 namespace WorkingSet
 
@@ -24,14 +24,20 @@ def supersetRemoval (s : WorkingSet) : WorkingSet :=
       ¬s.polygons.any fun q => q ≠ p && q.isSubsetOf p }
 
 /--
-given a convex polygon `p` and a worm hull `w` and a positive rational `ε`, return a List of convex polygons obtained by discretizing the space of direct isometries and applying them to a shrunk version of `w`, then taking the convex hull of p with the result.
+given a convex polygon `p` and a worm hull `w` and a positive rational `ε`,
+return a List of convex polygons obtained by discretizing the space of direct
+isometries and applying them to a shrunk version of `w`, then taking the
+convex hull of p with the result.
 
-TODO change the isometry discretization to only include isometries in the allowed set of `p`, rather than the initialworm
+TODO change the isometry discretization to only include isometries in the
+allowed set of `p`, rather than the initialworm
 -/
-def wormReplacement (p : ConvexPolygon) (w : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) : List ConvexPolygon :=
+def wormReplacement (p : ConvexPolygon ℚ) (w : ConvexPolygon ℚ) (epsilon : ℚ)
+    (eps_pos : 0 < epsilon) : List (ConvexPolygon ℚ) :=
   let isometries := discretizeIsometries epsilon
-  let transformedWorms : List ConvexPolygon := isometries.filterMap (fun iso =>
-    Option.map iso.applyPolygon (w.shrink epsilon (epsilon / 10) (by grind) (by grind)) )
+  let transformedWorms : List (ConvexPolygon ℚ) := isometries.filterMap (fun iso =>
+    Option.map iso.applyPolygon
+      (w.shrink epsilon (epsilon / 10) (by grind) (by grind)) )
   transformedWorms.filterMap fun transformedWorm =>
     -- Compute union by taking vertices from both polygons
     -- For simplicity, use convex hull of combined vertices
@@ -39,7 +45,8 @@ def wormReplacement (p : ConvexPolygon) (w : ConvexPolygon) (epsilon : ℚ) (eps
     (ConvexPolygon.ofList combinedVertices)
 
 /-- Operation 4: Add a worm to the working set -/
-def wormAdding (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
+def wormAdding (wormHull : ConvexPolygon ℚ) (epsilon : ℚ) (eps_pos : 0 < epsilon)
+    (s : WorkingSet) : WorkingSet :=
   { polygons := s.polygons.flatMap (fun p => wormReplacement p wormHull epsilon eps_pos) }
 
 /-- Apply all cleanup operations: bigSetRemoval -/
@@ -47,7 +54,8 @@ def cleanup (s : WorkingSet) : WorkingSet :=
   s |> bigSetRemoval |> supersetRemoval
 
 /-- Add worm and cleanup -/
-def addWormAndCleanup (wormHull : ConvexPolygon) (epsilon : ℚ) (eps_pos : 0 < epsilon) (s : WorkingSet) : WorkingSet :=
+def addWormAndCleanup (wormHull : ConvexPolygon ℚ) (epsilon : ℚ) (eps_pos : 0 < epsilon)
+    (s : WorkingSet) : WorkingSet :=
   (s.wormAdding wormHull epsilon eps_pos).cleanup
 
 /-- The initial working set: a single polygon, the `InitialWorm`. -/
