@@ -7,11 +7,15 @@
 
 \begin{definition}[Worm]
     \label{def:worm}
+    \lean{Moser.CompactnessOutline.Worms}
+    \leanfile{Moser/CompactnessOutline.lean}
     A \emph{worm} is a $1$-Lipschitz curve $f : [0,1] \to \RR^2$.
 \end{definition}
 
 \begin{definition}[Pinned worm]
     \label{def:pinnedWorm}
+    \lean{Moser.CompactnessOutline.PinnedWorms}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:worm}
     A worm $f$ is \emph{pinned} if $f(0) = (0,0)$. Since $f$ is $1$-Lipschitz
     on $[0,1]$, a pinned worm satisfies $\lvert f(x) \rvert \le x \le 1$ for
@@ -20,6 +24,8 @@
 
 \begin{definition}[$\varepsilon$-thickening]
     \label{def:thickening}
+    \lean{Metric.cthickening}
+    \leanfile{Moser/CompactnessOutline.lean}
     For a set $A \subseteq \RR^2$ and $\varepsilon \ge 0$, the
     \emph{$\varepsilon$-thickening} of $A$ is the closed
     $\varepsilon$-neighbourhood
@@ -30,6 +36,8 @@
 
 \begin{definition}[Grid polygonal worm]
     \label{def:gridPolygonalWorm}
+    \lean{Moser.CompactnessOutline.GridPolygonalWorms}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:pinnedWorm}
     Fix a step $\delta > 0$ and a vertex count $k \in \NN$. A
     \emph{$(k,\delta)$-grid polygonal worm} is a pinned worm obtained by
@@ -43,6 +51,8 @@
 
 \begin{definition}[$\varepsilon$-net of worms]
     \label{def:epsilonNet}
+    \lean{Moser.CompactnessOutline.IsEpsilonNet}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:pinnedWorm, def:thickening}
     Let $\varepsilon > 0$. A set $S$ of worms is an \emph{$\varepsilon$-net of
     worms} if the image of every pinned worm is contained in the
@@ -51,6 +61,8 @@
 
 \begin{theorem}[A finite grid $\varepsilon$-net exists]
     \label{thm:finiteEpsilonNet}
+    \lean{Moser.CompactnessOutline.finiteEpsilonNet}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:gridPolygonalWorm, def:epsilonNet}
     For every $\varepsilon > 0$ there exist $k \in \NN$ and $\delta > 0$ such
     that the set $S_\varepsilon$ of $(k,\delta)$-grid polygonal worms whose
@@ -103,6 +115,8 @@
 
 \begin{definition}[Moser cover number]
     \label{def:moserNumber}
+    \lean{Moser.CompactnessOutline.moserCoverNumber}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:worm}
     A set $C \subseteq \RR^2$ is a \emph{cover} if for every worm $f$ there is
     an orientation-preserving isometry (a translation--rotation) $g$ of $\RR^2$
@@ -112,6 +126,8 @@
 
 \begin{definition}[Minimal convex cover of a finite set of worms]
     \label{def:minimalCover}
+    \lean{Moser.CompactnessOutline.IsMinimalCover}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:worm}
     For a finite set $S$ of worms, the \emph{minimal convex cover} $K(S)$ is a
     convex set of least area for which there exist translation--rotations
@@ -134,6 +150,8 @@
 
 \begin{theorem}[Lower bound on the Moser number]
     \label{thm:lowerBound}
+    \lean{Moser.CompactnessOutline.lowerBound}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:moserNumber, def:minimalCover}
     For any finite set $S$ of worms, $M \ge \area\big(K(S)\big)$.
 \end{theorem}
@@ -148,6 +166,8 @@
 
 \begin{theorem}[Upper bound on the Moser number]
     \label{thm:upperBound}
+    \lean{Moser.CompactnessOutline.upperBound}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:moserNumber, def:minimalCover, def:thickening, def:epsilonNet}
     Let $\varepsilon > 0$ and let $S_\varepsilon$ be a finite
     $\varepsilon$-net of worms. Then
@@ -172,6 +192,8 @@
 
 \begin{theorem}[Steiner gap between the bounds]
     \label{thm:steinerGap}
+    \lean{Moser.CompactnessOutline.steinerGap}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:minimalCover, def:thickening}
     Let $K$ be a convex body in $\RR^2$ with perimeter $L$. Then for every
     $\varepsilon \ge 0$,
@@ -206,6 +228,8 @@
 
 \begin{theorem}[Approximating the Moser number]
     \label{thm:approxAlgorithm}
+    \lean{Moser.CompactnessOutline.approxAlgorithm}
+    \leanfile{Moser/CompactnessOutline.lean}
     \uses{def:moserNumber, thm:finiteEpsilonNet, thm:lowerBound, thm:upperBound, thm:steinerGap, rem:perimeterBound}
     Assume a perimeter bound $L_0$ on $K(S_\varepsilon)$ as in
     Remark~\ref{rem:perimeterBound}. Then for any target accuracy $x > 0$ the

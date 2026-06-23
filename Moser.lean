@@ -1,3 +1,4 @@
+import Moser.CompactnessOutline
 import Moser.Constants
 import Moser.DirectIsometry.Basic
 import Moser.DirectIsometry.Discretization
