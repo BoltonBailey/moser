@@ -54,7 +54,7 @@ example (ε : ℝ) (A : Set ℝ²) : Set ℝ² := Metric.cthickening ε A
 Let `ε > 0`. A set `S` of worms is an *`ε`-net of worms* if the image of every
 pinned worm is contained in the `ε`-thickening of (the image of) some element of
 `S`. -/
-def IsEpsilonNet (ε : ℝ) (S : Set (Set ℝ²)) : Prop :=
+def IsWormEpsilonNet (ε : ℝ) (S : Set (Set ℝ²)) : Prop :=
   ∀ s ∈ PinnedWorms, ∃ t ∈ S, s ⊆ Metric.cthickening ε t
 
 /-! ## A finite `ε`-net of polygonal worms -/
@@ -65,7 +65,7 @@ grid polygonal worms with nodes within distance `1` of the origin is an
 private lemma gridNetWorms_isEpsilonNet (ε : ℝ) (_hε : 0 < ε)
     (k : ℕ) (hk0 : 0 < k) (δ : ℝ) (hδ : 0 < δ) (h2δk : 2 * δ * (k : ℝ) ≤ 1)
     (hk : (1 : ℝ) / k < ε / 2) (hkδ : 2 * δ * (k : ℝ) + δ < ε / 2) :
-    IsEpsilonNet ε (GridNetWorms k δ) := by
+    IsWormEpsilonNet ε (GridNetWorms k δ) := by
   have hkR : (0 : ℝ) < (k : ℝ) := by exact_mod_cast hk0
   have hk1 : (1 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk0
   intro s hs
@@ -223,9 +223,9 @@ private lemma gridNetWorms_isEpsilonNet (ε : ℝ) (_hε : 0 < ε)
 For every `ε > 0` there exist `k : ℕ` and `δ > 0` such that the set `S_ε` of
 `(k, δ)`-grid polygonal worms whose nodes lie within distance `1` of the origin
 is finite and is an `ε`-net of worms. -/
-theorem finiteEpsilonNet (ε : ℝ) (hε : 0 < ε) :
+theorem finiteWormEpsilonNet (ε : ℝ) (hε : 0 < ε) :
     ∃ (k : ℕ) (δ : ℝ), 0 < δ ∧
-      (GridNetWorms k δ).Finite ∧ IsEpsilonNet ε (GridNetWorms k δ) := by
+      (GridNetWorms k δ).Finite ∧ IsWormEpsilonNet ε (GridNetWorms k δ) := by
   obtain ⟨k, hk0, hk⟩ : ∃ k : ℕ, 0 < k ∧ (1 : ℝ) / k < ε / 2 := by
     obtain ⟨k, hk⟩ := exists_nat_gt (2 / ε)
     have h2ε : (0 : ℝ) < 2 / ε := by positivity
@@ -251,37 +251,57 @@ theorem finiteEpsilonNet (ε : ℝ) (hε : 0 < ε) :
 
 /-! ## Bounds on the Moser number -/
 
+/-- The infimum of `volume X` over all planar sets `X` satisfying a predicate
+`P`. -/
+noncomputable def minimalVolume (P : Set ℝ² → Prop) : ℝ≥0∞ :=
+  sInf {v | ∃ X, P X ∧ volume X = v}
+
+/-- A map `g : ℝ² → ℝ²` is an *orientation-preserving isometry* when it has the
+form `x ↦ e x + v` for some determinant-`1` linear isometry equivalence `e` and
+translation `v`. -/
+def IsOrientationPreservingIsometry (g : ℝ² → ℝ²) : Prop :=
+  ∃ (e : ℝ² ≃ₗᵢ[ℝ] ℝ²) (v : ℝ²),
+      e.toLinearEquiv.det = 1 ∧ g = fun x => e x + v
+
+/-- `CoversByIsometry X w` states that `X` covers the set `w` by an
+orientation-preserving isometry: some such isometry places a copy of `X` over
+`w`. (Used with `w` a worm in `WormCovers`, but the relation itself is generic.) -/
+def CoversByIsometry (X w : Set ℝ²) : Prop :=
+  ∃ g : ℝ² → ℝ², IsOrientationPreservingIsometry g ∧ w ⊆ g '' X
+
 /-- The set of *worm covers*: measurable sets `X` that cover every worm by an
 orientation-preserving isometry (a determinant-`1` linear isometry equivalence
 followed by a translation). -/
 def WormCovers : Set (Set ℝ²) :=
-  {X | MeasurableSet X ∧ ∀ w ∈ Worms, ∃ (e : ℝ² ≃ₗᵢ[ℝ] ℝ²) (v : ℝ²),
-      e.toLinearEquiv.det = 1 ∧ w ⊆ (fun x => e x + v) '' X}
+  {X | MeasurableSet X ∧ ∀ w ∈ Worms, CoversByIsometry X w}
 
 /-- **Moser cover number** (`def:moserNumber`).
 The *Moser cover number* `M` is the infimum of `area C` over all convex
 covers `C`. -/
 noncomputable def moserCoverNumber : ℝ≥0∞ :=
-  sInf {v | ∃ C ∈ WormCovers, Convex ℝ C ∧ volume C = v}
+  minimalVolume (fun C => C ∈ WormCovers ∧ Convex ℝ C)
+
+/-- `IsPlacementCover S K` states that `K` is the convex hull of placements of
+the elements of `S` by translation-rotations: there is a determinant-`1` linear
+isometry `e s` and translation `t s` for each `s`, and `K` is the convex hull of
+the union of the placed images. -/
+def IsPlacementCover (S : Set (Set ℝ²)) (K : Set ℝ²) : Prop :=
+  ∃ g : Set ℝ² → ℝ² → ℝ²,
+      (∀ s ∈ S, IsOrientationPreservingIsometry (g s)) ∧
+      K = convexHull ℝ (⋃ s ∈ S, g s '' s)
 
 /-- The minimal area of a convex hull of placements of a set of worms `S`: the
 infimum, over translation-rotations `(g_s)_{s ∈ S}`, of the area of the convex
 hull of the union of the placed images. This is `area (K S)`. -/
 noncomputable def minimalCoverArea (S : Set (Set ℝ²)) : ℝ≥0∞ :=
-  sInf {v | ∃ (e : Set ℝ² → ℝ² ≃ₗᵢ[ℝ] ℝ²) (t : Set ℝ² → ℝ²),
-      (∀ s ∈ S, (e s).toLinearEquiv.det = 1) ∧
-      volume (convexHull ℝ (⋃ s ∈ S, (fun x => (e s) x + t s) '' s)) = v}
+  minimalVolume (IsPlacementCover S)
 
 /-- **Minimal convex cover of a finite set of worms** (`def:minimalCover`).
 `IsMinimalCover S K` states that `K = K S` is a convex set realizing the minimal
 area `minimalCoverArea S`, obtained as the convex hull of placements of the
 elements of `S` by translation-rotations. -/
 def IsMinimalCover (S : Set (Set ℝ²)) (K : Set ℝ²) : Prop :=
-  Convex ℝ K ∧
-  (∃ (e : Set ℝ² → ℝ² ≃ₗᵢ[ℝ] ℝ²) (t : Set ℝ² → ℝ²),
-      (∀ s ∈ S, (e s).toLinearEquiv.det = 1) ∧
-      K = convexHull ℝ (⋃ s ∈ S, (fun x => (e s) x + t s) '' s)) ∧
-  volume K = minimalCoverArea S
+  Convex ℝ K ∧ IsPlacementCover S K ∧ volume K = minimalCoverArea S
 
 /-- The perimeter of a planar set `K`, defined as the `1`-dimensional Euclidean
 Hausdorff measure (arc length) of its topological frontier. -/
@@ -290,15 +310,16 @@ noncomputable def perimeter (K : Set ℝ²) : ℝ :=
 
 /-- **Lower bound on the Moser number** (`thm:lowerBound`).
 For any finite set `S` of worms, `M ≥ area (K S)`. -/
-theorem lowerBound (S : Set (Set ℝ²)) (hS : S.Finite) :
+theorem moserCoverNumber_lowerBound (S : Set (Set ℝ²)) (hS : S.Finite)
+    (hSworms : S ⊆ Worms) :
     minimalCoverArea S ≤ moserCoverNumber := by
   sorry
 
 /-- **Upper bound on the Moser number** (`thm:upperBound`).
 Let `ε > 0` and let `S_ε` be a finite `ε`-net of worms with minimal convex cover
 `K`. Then `M ≤ area (K^ε)`, the area of the `ε`-thickening of `K`. -/
-theorem upperBound (ε : ℝ) (hε : 0 < ε) (S : Set (Set ℝ²)) (hS : S.Finite)
-    (hnet : IsEpsilonNet ε S) (K : Set ℝ²) (hK : IsMinimalCover S K) :
+theorem moserCoverNumber_upperBound (ε : ℝ) (hε : 0 < ε) (S : Set (Set ℝ²)) (hS : S.Finite)
+    (hnet : IsWormEpsilonNet ε S) (K : Set ℝ²) (hK : IsMinimalCover S K) :
     moserCoverNumber ≤ volume (Metric.cthickening ε K) := by
   sorry
 
@@ -317,7 +338,7 @@ cover `K` of it providing a lower bound `area (K S) ≤ M` and an upper bound
 `M ≤ area (K^ε)` whose gap is at most `x`. -/
 theorem approxAlgorithm (x : ℝ) (hx : 0 < x) :
     ∃ (ε : ℝ) (S : Set (Set ℝ²)) (K : Set ℝ²),
-      0 < ε ∧ S.Finite ∧ IsEpsilonNet ε S ∧ IsMinimalCover S K ∧
+      0 < ε ∧ S.Finite ∧ IsWormEpsilonNet ε S ∧ IsMinimalCover S K ∧
       minimalCoverArea S ≤ moserCoverNumber ∧
       moserCoverNumber ≤ volume (Metric.cthickening ε K) ∧
       (volume (Metric.cthickening ε K)).toReal - (minimalCoverArea S).toReal ≤ x := by

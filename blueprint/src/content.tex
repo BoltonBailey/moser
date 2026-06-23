@@ -729,7 +729,7 @@ formula. The development is carried out in
 
 \begin{definition}[$\varepsilon$-net of worms]
     \label{def:epsilonNet}
-    \lean{Moser.CompactnessOutline.IsEpsilonNet}
+    \lean{Moser.CompactnessOutline.IsWormEpsilonNet}
     \uses{def:pinnedWorm, def:thickening}
     Let $\varepsilon > 0$. A set $S$ of worms is an \emph{$\varepsilon$-net of
     worms} if the image of every pinned worm is contained in the
@@ -738,7 +738,7 @@ formula. The development is carried out in
 
 \begin{theorem}[A finite grid $\varepsilon$-net exists]
     \label{thm:finiteEpsilonNet}
-    \lean{Moser.CompactnessOutline.finiteEpsilonNet}
+    \lean{Moser.CompactnessOutline.finiteWormEpsilonNet}
     \leanfile{Moser/Real/CompactnessOutline.lean}
     \uses{def:gridPolygonalWorm, def:epsilonNet}
     \leanok
@@ -826,7 +826,7 @@ formula. The development is carried out in
 
 \begin{theorem}[Lower bound on the Moser number]
     \label{thm:lowerBound}
-    \lean{Moser.CompactnessOutline.lowerBound}
+    \lean{Moser.CompactnessOutline.moserCoverNumber_lowerBound}
     \uses{def:moserNumber, def:minimalCover}
     For any finite set $S$ of worms, $M \ge \area\big(K(S)\big)$.
 \end{theorem}
@@ -841,7 +841,7 @@ formula. The development is carried out in
 
 \begin{theorem}[Upper bound on the Moser number]
     \label{thm:upperBound}
-    \lean{Moser.CompactnessOutline.upperBound}
+    \lean{Moser.CompactnessOutline.moserCoverNumber_upperBound}
     \uses{def:moserNumber, def:minimalCover, def:thickening, def:epsilonNet}
     Let $\varepsilon > 0$ and let $S_\varepsilon$ be a finite
     $\varepsilon$-net of worms. Then

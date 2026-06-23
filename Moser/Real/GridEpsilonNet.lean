@@ -10,8 +10,8 @@ map `gridRound`, and the piecewise-linear interpolant `interp` together with its
 interpolation identity and `1`-Lipschitz bound.
 
 These declarations do not depend on the worm base definitions, so this file
-imports only Mathlib. The `ε`-net theorem `finiteEpsilonNet` (which couples this
-machinery to `PinnedWorms` / `IsEpsilonNet`) lives in
+imports only Mathlib. The `ε`-net theorem `finiteWormEpsilonNet` (which couples
+this machinery to `PinnedWorms` / `IsWormEpsilonNet`) lives in
 `Moser.Real.CompactnessOutline`, which imports this file.
 -/
 
