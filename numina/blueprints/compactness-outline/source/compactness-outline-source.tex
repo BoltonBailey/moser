@@ -1,0 +1,30 @@
+Theorem: There is an algorithm that returns, for any epsilon, a finite set S\_\epsilon of worms such that any worm (with one endpoint on the origin, say) is contained in the epsilon thickening of some worm in S\_\epsilon.
+
+Proof/Construction: We will take our set of worms to be polygonal worms with at most $k$ vertices belonging the grid of points $\delta \ZZ \times \delta \ZZ$, with $k, \delta$ to be chosen later.
+
+For any 1-Lipschitz worm $f: [0,1] \to \RR^2$,
+Rescale the worm down to a $\frac{1}{1 + 2\delta k}$-Lipschitz function $f_1: [0,1] \to \RR^2$ (note that this only moves points by $2\delta k$)
+consider the $\tilde{f}$ defined by taking $\tilde{f}(n/k)$ to be the nearest grid point to $f_1(n/k)$, and linearly interpolating between these points.
+Note that this increases the Lipschitz constant by $1 + 2\delta k$ so that $\tilde{f}$ is $1$ Lipschitz.
+
+Now for any $x \in [0,1]$, the distance from $f(x)$ to the corresponding point $\tilde{f}(x)$ is at most $2\delta k + \delta + 1/k < \epsilon $. Therefore, we may choose $k > 2/\epsilon$ and $\delta$ sufficiently small that the point in the original worm is within $\epsilon$ of the point in the new worm.
+\qed
+
+Now.
+Consider the minimal convex cover of all worms in a set S\_\epsilon with this property that any worm (with one endpoint on the origin, say) is contained in the epsilon thickening of some worm in S\_\epsilon
+(Note we can compute the minimal cover by (i.e. minimum over all translation-rotations of the elements of S of the area of the hull of the union) this can be done by quantifier elimination and maybe by convex optimization?)
+we have an upper and a lower bound on the Moser number:
+
+- We have a lower bound in the area of the cover, because any moser set must cover the worms in S.
+- We have an upper bound in the area of the epsilon thickening of the cover, because if we epsilon thicken the cover, that will cover the thickenings of every worm in S, and therefore cover every worm.
+
+And we also know these bounds are close: The area of the thickening of the cover is exactly `epsilon * perimeter_of_cover + pi epsilon^2` more than the area of the cover (note that if we insist that a circle is included in S, we can prove that the cover must be bounded and will therefore have perimeter less than TODO).
+
+And because we have bounds on the area and perimeter of a moser set, we know that the distance between this upper and lower bound is less than about the perimter times epsilon (technically, we might have to add a square to S to make this argument)
+
+Thus, to compute the moser soltuion to within x:
+
+- choose epsilon = x.
+- Compute an S that satisfies this epsilon.
+  - Perhaps by just locating worms not already covered and adding them when we find them.
+- Compute the minimal cover of S
