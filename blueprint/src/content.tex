@@ -340,10 +340,26 @@ only through explicit approximation bounds.
 
 \begin{proposition}[Points outside the location range are excluded]
   \label{prop:locationRange-excludes}
+  \lean{Moser.area_hull_initialWorm_insert_gt_areaThreshold}
   \uses{def:locationRange, def:areaThreshold, def:benchmark-worms}
   Any convex polygon containing the initial worm as well as a point
   outside the location range has area strictly greater than $A_*$.
+  Concretely, if a rational point $p$ is not contained in the location
+  range, then the convex hull of $\{p\}$ together with the vertices of
+  the initial worm has area strictly greater than $A_*$.
 \end{proposition}
+\begin{proof}
+  \uses{def:locationRange, def:areaThreshold, def:benchmark-worms}
+  By definition the location range is the square with corners at
+  $(\pm 4 A_*, \pm 4 A_*)$. If $p = (x, y)$ lies outside this square,
+  then $\max(|x|, |y|) > 4 A_*$. The initial worm has vertices
+  $(0,0)$, $(1/2, 0)$, $(0, 1/2)$, so the triangle formed by $p$
+  together with one of the legs of the initial worm (the leg of
+  length $1/2$ along the axis where $p$ is far from the origin) has
+  base $1/2$ and height greater than $4 A_*$, hence area greater than
+  $A_*$. This triangle is contained in the convex hull of $p$ together
+  with the worm vertices, so the hull's area exceeds $A_*$.
+\end{proof}
 
 \chapter{Worms}
 
@@ -449,30 +465,104 @@ the list.
 
 \chapter{Convex hull growth}
 
-Given an areaThreshold and a nontrivial convex polygon of area below the threshold, 
-there is a limited set of points
-such that if we take the hull of such a point with the polygon, the area of resulting polygon is less than the area threshhold.
-In fact, this set of points
+Given an area threshold $A_*$ and a nontrivial convex polygon of area below
+the threshold, there is a limited region of the plane such that adjoining a
+point in that region to the polygon and taking the convex hull keeps the
+resulting area below $A_*$. Our goal in this chapter is to describe this
+region as the intersection of a finite collection of half-spaces, one for
+each ordered pair of vertices of the input polygon, computed up to a
+specified rational tolerance $\tau$.
 
-\begin{definition}[Growable distance to left of a pair]
-  Given a convex polygon $P$ and an area threshold $A_*$, and an ordered pair of vertices $V_i, V_j$ (not necessarily adjacent) of $P$, the growable distance to the left of the directed line $V_i \to V_j$ is a distance $d$ such that the sum of the area of $P$ to the right of the line $V_i \to V_j$ and the area of the triangle formed by $V_i, V_j$ and a point at distance $d$ to the left of the line is at least $A_*$ (and is within a tolerance of the exact such distance).
+\begin{definition}[Growable distance to the left of a vertex pair]
+  \label{def:growableDistance}
+  \lean{ConvexPolygon.growableDistance}
+  \uses{def:convex-polygon, def:areaThreshold}
+  Let $P$ be a convex polygon, $A_*$ a rational area threshold, and
+  $V_i, V_j$ an ordered pair of (not necessarily adjacent) vertices of
+  $P$. Let $\tau > 0$ be a rational tolerance. The
+  \emph{growable distance to the left of the directed line
+  $V_i \to V_j$} is a rational number $d \ge 0$ such that, writing $A_R$
+  for the area of $P$ lying weakly to the right of the directed line
+  $V_i V_j$ and $T(d)$ for the area of the triangle formed by $V_i$,
+  $V_j$, and a point at perpendicular distance $d$ to the left of the
+  line, we have
+  \[ A_R + T(d) \;\ge\; A_* , \]
+  and $d$ is within the tolerance $\tau$ of the unique exact value for
+  which equality holds.
 \end{definition}
 
-\begin{definition}[Growth half-spaces to the left of a pairs]
-  The growth half space to the left of a pair of vertices $V_i, V_j$ of a convex polygon $P$ and tolerance $\tau$ is the half-space to the left of the line parallel to $V_i \to V_j$ at distance $d$ from it, where $d$ is the growable distance to the left of the pair. 
+\begin{definition}[Growth half-space to the left of a vertex pair]
+  \label{def:growthHalfspace}
+  \lean{ConvexPolygon.growthHalfspace, ConvexPolygon.growthHalfspaceOfPair}
+  \uses{def:growableDistance, def:halfspace}
+  Let $P$, $A_*$, $\tau$, and $V_i, V_j$ be as in
+  Definition~\ref{def:growableDistance}, with growable distance $d$.
+  The \emph{growth half-space} to the left of the pair $V_i, V_j$ is
+  the closed half-space lying to the left of (and including) the line
+  parallel to $V_i \to V_j$ at perpendicular distance $d$ on the left
+  side of the directed line.
 \end{definition}
 
-\begin{lemma}[Threshold violated outside Growth half-space]
-  If we add a point outside the growth half-space to the left of a pair of vertices $V_i, V_j$ of a convex polygon $P$ and tolerance $\tau$, then the area of the convex hull of $P$ and that point is greater than $A_*$. 
+\begin{lemma}[Threshold violated outside a growth half-space]
+  \label{lem:threshold_violated_outside_growth_halfspace}
+  \lean{ConvexPolygon.threshold_violated_outside_growth_halfspace}
+  \uses{def:growthHalfspace}
+  Let $P$ be a convex polygon with rational vertices, $A_*$ a rational
+  area threshold, $\tau > 0$ a rational tolerance, and $V_i, V_j$ an
+  ordered pair of vertices of $P$. If a rational point $p$ lies
+  strictly outside the growth half-space to the left of $V_i, V_j$
+  associated with $P$, $A_*$, and $\tau$, then the area of the convex
+  hull of $P \cup \{p\}$ is strictly greater than $A_*$.
 \end{lemma}
+\begin{proof}
+  \uses{def:growableDistance, def:growthHalfspace}
+  By the definition of the growth half-space, $p$ lying strictly
+  outside means that the perpendicular signed distance from $p$ to the
+  directed line $V_i V_j$, measured to the left, exceeds the growable
+  distance $d$. The convex hull of $P$ together with $p$ contains both
+  the portion of $P$ lying weakly to the right of the line $V_i V_j$
+  (of area $A_R$) and the triangle with vertices $V_i$, $V_j$, $p$,
+  and these two regions intersect only along the segment $V_i V_j$, a
+  set of measure zero. The triangle has base $|V_i V_j|$ and height
+  equal to the left-distance from $p$ to the line, hence area strictly
+  greater than $T(d)$. Therefore the hull's area is at least
+  $A_R + T(\text{left-distance of } p) > A_R + T(d) \ge A_*$.
+\end{proof}
 
 \begin{definition}[Growth half-space intersection polygon]
-  The growth half-space intersection of a convex polygon $P$ and tolerance $\tau$ is the intersection of the growth half-spaces to the left of all pairs of vertices of $P$ and tolerance $\tau$.
+  \label{def:growthHalfspaceIntersection}
+  \lean{ConvexPolygon.growthHalfspaceIntersection}
+  \uses{def:growthHalfspace, def:ofHalfSpaces}
+  Let $P$ be a convex polygon, $A_*$ a rational area threshold, and
+  $\tau > 0$ a rational tolerance. The
+  \emph{growth half-space intersection} associated to $P$, $A_*$, and
+  $\tau$ is the intersection, over all ordered pairs $(V_i, V_j)$ of
+  distinct vertices of $P$, of the growth half-spaces to the left of
+  those pairs. Equivalently, it is the set of points $p$ such that for
+  every ordered vertex pair $(V_i, V_j)$, the point $p$ lies in the
+  growth half-space to the left of $V_i, V_j$.
 \end{definition}
 
-\begin{lemma}[Threshold violated outside growth half-space intersection]
-  If we add a point outside the growth half-space intersection of a convex polygon $P$ and tolerance $\tau$, then the area of the convex hull of $P$ and that point is greater than $A_*$.
+\begin{lemma}[Threshold violated outside the growth half-space intersection]
+  \label{lem:threshold_violated_outside_growth_intersection}
+  \lean{ConvexPolygon.threshold_violated_outside_growth_intersection}
+  \uses{def:growthHalfspaceIntersection}
+  Let $P$ be a convex polygon with rational vertices, $A_*$ a rational
+  area threshold, and $\tau > 0$ a rational tolerance. If a rational
+  point $p$ lies outside the growth half-space intersection of $P$,
+  $A_*$, and $\tau$, then the area of the convex hull of
+  $P \cup \{p\}$ is strictly greater than $A_*$.
 \end{lemma}
+\begin{proof}
+  \uses{lem:threshold_violated_outside_growth_halfspace,
+    def:growthHalfspaceIntersection}
+  If $p$ is outside the intersection, then there exists at least one
+  ordered vertex pair $(V_i, V_j)$ such that $p$ lies strictly outside
+  the growth half-space to the left of $(V_i, V_j)$. By
+  Lemma~\ref{lem:threshold_violated_outside_growth_halfspace}, the
+  convex hull of $P \cup \{p\}$ then has area strictly greater than
+  $A_*$.
+\end{proof}
 
 
 
@@ -583,4 +673,255 @@ The end goal of the working set iteration is the following claim.
   with further worms arising from the enumeration scheme in
   \texttt{Moser.Worm.Enumeration} (currently stubbed).
 \end{proposition}
+
+\chapter{Compactness and the Moser cover number}
+
+This chapter develops an alternative, real-analytic framing of the problem
+that does not rely on the rational discretisation of the preceding chapters.
+A worm is taken to be an arbitrary $1$-Lipschitz curve, and we approximate
+the (infinite) space of worms by a finite $\varepsilon$-net of grid
+polygonal worms. This yields matching upper and lower bounds on the
+\emph{Moser cover number}, whose gap is controlled by the planar Steiner
+formula. The development is carried out in
+\texttt{Moser/CompactnessOutline.lean}.
+
+\section{Worms and thickenings}
+
+\begin{definition}[Worm (Lipschitz curve)]
+    \label{def:lipschitz-worm}
+    \lean{Moser.CompactnessOutline.Worms}
+    A \emph{worm} is a $1$-Lipschitz curve $f : [0,1] \to \RR^2$.
+\end{definition}
+
+\begin{definition}[Pinned worm]
+    \label{def:pinnedWorm}
+    \lean{Moser.CompactnessOutline.PinnedWorms}
+    \uses{def:lipschitz-worm}
+    A worm $f$ is \emph{pinned} if $f(0) = (0,0)$. Since $f$ is $1$-Lipschitz
+    on $[0,1]$, a pinned worm satisfies $\lvert f(x) \rvert \le x \le 1$ for
+    all $x \in [0,1]$.
+\end{definition}
+
+\begin{definition}[$\varepsilon$-thickening]
+    \label{def:thickening}
+    \lean{Metric.cthickening}
+    For a set $A \subseteq \RR^2$ and $\varepsilon \ge 0$, the
+    \emph{$\varepsilon$-thickening} of $A$ is the closed
+    $\varepsilon$-neighbourhood
+    \[
+        A^{\varepsilon} \;=\; \{\, x \in \RR^2 : \dist(x, A) \le \varepsilon \,\}.
+    \]
+\end{definition}
+
+\begin{definition}[Grid polygonal worm]
+    \label{def:gridPolygonalWorm}
+    \lean{Moser.CompactnessOutline.GridPolygonalWorms}
+    \uses{def:pinnedWorm}
+    Fix a step $\delta > 0$ and a vertex count $k \in \NN$. A
+    \emph{$(k,\delta)$-grid polygonal worm} is a pinned worm obtained by
+    choosing grid points $p_0, p_1, \dots, p_k \in \delta\ZZ \times \delta\ZZ$
+    with $p_0 = (0,0)$, setting $\tilde f(n/k) = p_n$ for $0 \le n \le k$, and
+    interpolating linearly on each interval $[n/k, (n+1)/k]$, subject to the
+    resulting curve being $1$-Lipschitz.
+\end{definition}
+
+\section{A finite \texorpdfstring{$\varepsilon$}{epsilon}-net of polygonal worms}
+
+\begin{definition}[$\varepsilon$-net of worms]
+    \label{def:epsilonNet}
+    \lean{Moser.CompactnessOutline.IsEpsilonNet}
+    \uses{def:pinnedWorm, def:thickening}
+    Let $\varepsilon > 0$. A set $S$ of worms is an \emph{$\varepsilon$-net of
+    worms} if the image of every pinned worm is contained in the
+    $\varepsilon$-thickening of the image of some element of $S$.
+\end{definition}
+
+\begin{theorem}[A finite grid $\varepsilon$-net exists]
+    \label{thm:finiteEpsilonNet}
+    \lean{Moser.CompactnessOutline.finiteEpsilonNet}
+    \uses{def:gridPolygonalWorm, def:epsilonNet}
+    For every $\varepsilon > 0$ there exist $k \in \NN$ and $\delta > 0$ such
+    that the set $S_\varepsilon$ of $(k,\delta)$-grid polygonal worms whose
+    nodes lie within distance $1$ of the origin is finite and is an
+    $\varepsilon$-net of worms.
+\end{theorem}
+\begin{proof}
+    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening, def:epsilonNet}
+    Choose $k > 2/\varepsilon$, so that $1/k < \varepsilon/2$, and then choose
+    $\delta > 0$ small enough that $2\delta k + \delta < \varepsilon/2$. With
+    these $k$ and $\delta$, the set $S_\varepsilon$ is finite, since each of the
+    finitely many nodes ranges over the finitely many grid points of
+    $\delta\ZZ \times \delta\ZZ$ inside the unit disc.
+
+    It remains to check that $S_\varepsilon$ is an $\varepsilon$-net. Fix a
+    pinned worm $f$ and construct an element of $S_\varepsilon$ near it. Set
+    \[
+        f_1 = \frac{1}{1 + 2\delta k}\, f ,
+    \]
+    which is $\tfrac{1}{1+2\delta k}$-Lipschitz; since $f$ is pinned,
+    $\lvert f(x) \rvert \le 1$, so
+    \[
+        \lvert f(x) - f_1(x) \rvert
+            = \lvert f(x) \rvert \cdot \frac{2\delta k}{1 + 2\delta k}
+            \le 2\delta k .
+    \]
+    Let $\tilde f(n/k)$ be a nearest point of $\delta\ZZ \times \delta\ZZ$ to
+    $f_1(n/k)$ for $0 \le n \le k$, and extend $\tilde f$ by linear
+    interpolation. Each node moves by at most $\delta$ (half a grid cell in
+    each coordinate), so on each subinterval of length $1/k$ the segment of
+    $\tilde f$ has length at most
+    $\tfrac{1}{k}\cdot\tfrac{1}{1+2\delta k} + 2\delta$; multiplying by $k$
+    shows the Lipschitz constant of $\tilde f$ is at most
+    $\tfrac{1}{1+2\delta k}\,(1 + 2\delta k) = 1$, so $\tilde f$ is a
+    $(k,\delta)$-grid polygonal worm, and its nodes lie within distance $1$ of
+    the origin, hence $\tilde f \in S_\varepsilon$. Comparing $f$ to $\tilde f$
+    at an arbitrary $x \in [0,1]$, the rescaling contributes at most
+    $2\delta k$, the grid rounding at most $\delta$, and the linear
+    interpolation at most $1/k$, so
+    \[
+        \lvert f(x) - \tilde f(x) \rvert
+            \;\le\; 2\delta k + \delta + \frac{1}{k} < \varepsilon .
+    \]
+    Therefore every point of the image of $f$ lies within $\varepsilon$ of the
+    image of $\tilde f$, i.e.\ the image of $f$ is contained in the
+    $\varepsilon$-thickening of the image of $\tilde f \in S_\varepsilon$.
+\end{proof}
+
+\section{Bounds on the Moser number}
+
+\begin{definition}[Moser cover number]
+    \label{def:moserNumber}
+    \lean{Moser.CompactnessOutline.moserCoverNumber}
+    \uses{def:lipschitz-worm}
+    A set $C \subseteq \RR^2$ is a \emph{cover} if for every worm $f$ there is
+    an orientation-preserving isometry (a translation--rotation) $g$ of $\RR^2$
+    such that the image of $g \circ f$ is contained in $C$. The \emph{Moser
+    cover number} $M$ is the infimum of $\area(C)$ over all convex covers $C$.
+\end{definition}
+
+\begin{definition}[Minimal convex cover of a finite set of worms]
+    \label{def:minimalCover}
+    \lean{Moser.CompactnessOutline.IsMinimalCover}
+    \uses{def:lipschitz-worm}
+    For a finite set $S$ of worms, the \emph{minimal convex cover} $K(S)$ is a
+    convex set of least area for which there exist translation--rotations
+    $(g_s)_{s \in S}$ with the image of $g_s \circ s$ contained in $K(S)$ for
+    every $s \in S$; that is, $K(S)$ minimises
+    $\area\!\big(\conv \bigcup_{s \in S} g_s(\image\, s)\big)$ over all choices
+    of translation--rotations $g_s$.
+\end{definition}
+
+\begin{remark}
+    \label{rem:computeMinimalCover}
+    \uses{def:minimalCover}
+    The minimal convex cover $K(S)$ is the minimum, over all
+    translation--rotations of the elements of $S$, of the area of the convex
+    hull of their union. For a fixed finite $S$ this is a finite-dimensional
+    optimisation problem in the placement parameters and is in principle
+    computable, e.g.\ by quantifier elimination over the reals, and plausibly
+    by convex optimisation.
+\end{remark}
+
+\begin{theorem}[Lower bound on the Moser number]
+    \label{thm:lowerBound}
+    \lean{Moser.CompactnessOutline.lowerBound}
+    \uses{def:moserNumber, def:minimalCover}
+    For any finite set $S$ of worms, $M \ge \area\big(K(S)\big)$.
+\end{theorem}
+\begin{proof}
+    \uses{def:moserNumber, def:minimalCover}
+    Let $C$ be any convex cover. Since every element of $S$ is a worm, for each
+    $s \in S$ there is a translation--rotation $g_s$ placing $g_s \circ s$
+    inside $C$. Thus $C$ is a convex set admitting placements of all elements of
+    $S$, so by minimality $\area(C) \ge \area(K(S))$. Taking the infimum over
+    convex covers $C$ gives $M \ge \area(K(S))$.
+\end{proof}
+
+\begin{theorem}[Upper bound on the Moser number]
+    \label{thm:upperBound}
+    \lean{Moser.CompactnessOutline.upperBound}
+    \uses{def:moserNumber, def:minimalCover, def:thickening, def:epsilonNet}
+    Let $\varepsilon > 0$ and let $S_\varepsilon$ be a finite
+    $\varepsilon$-net of worms. Then
+    \[
+        M \le \area\!\big(K(S_\varepsilon)^{\varepsilon}\big),
+    \]
+    the area of the $\varepsilon$-thickening of the minimal convex cover of
+    $S_\varepsilon$.
+\end{theorem}
+\begin{proof}
+    \uses{def:moserNumber, def:minimalCover, def:thickening, thm:finiteEpsilonNet}
+    Write $K = K(S_\varepsilon)$ with placements $(g_s)_{s \in S_\varepsilon}$.
+    The $\varepsilon$-thickening $K^{\varepsilon}$ is convex. We claim it is a
+    cover. Let $f$ be an arbitrary worm; after a translation--rotation we may
+    assume $f$ is pinned. By Theorem~\ref{thm:finiteEpsilonNet} there is
+    $s \in S_\varepsilon$ such that the image of $f$ is contained in the
+    $\varepsilon$-thickening of the image of $s$. Applying the placement $g_s$,
+    the image of $g_s \circ f$ is contained in the $\varepsilon$-thickening of
+    the image of $g_s \circ s$, which lies in $K^{\varepsilon}$. Hence
+    $K^{\varepsilon}$ is a convex cover, and $M \le \area(K^{\varepsilon})$.
+\end{proof}
+
+\begin{theorem}[Steiner gap between the bounds]
+    \label{thm:steinerGap}
+    \lean{Moser.CompactnessOutline.steinerGap}
+    \uses{def:minimalCover, def:thickening}
+    Let $K$ be a convex body in $\RR^2$ with perimeter $L$. Then for every
+    $\varepsilon \ge 0$,
+    \[
+        \area\big(K^{\varepsilon}\big)
+            = \area(K) + \varepsilon\, L + \pi \varepsilon^{2}.
+    \]
+    In particular the upper and lower bounds of
+    Theorems~\ref{thm:lowerBound} and~\ref{thm:upperBound} differ by at most
+    $\varepsilon\, L + \pi \varepsilon^{2}$, where $L$ is the perimeter of
+    $K(S_\varepsilon)$.
+\end{theorem}
+\begin{proof}
+    \uses{def:thickening}
+    This is the planar Steiner formula for convex bodies: the outer parallel
+    body at distance $\varepsilon$ adds a strip of area $\varepsilon L$ along
+    the boundary together with disc sectors of total area $\pi \varepsilon^2$ at
+    the convex corners.
+\end{proof}
+
+\begin{remark}[Perimeter bound]
+    \label{rem:perimeterBound}
+    \uses{def:minimalCover, thm:steinerGap}
+    To turn Theorem~\ref{thm:steinerGap} into an effective error bound one needs
+    an a priori bound on the perimeter $L$ of $K(S_\varepsilon)$. Insisting that
+    $S_\varepsilon$ contains a fixed closed worm (a loop, e.g.\ a small circle)
+    forces every cover to be bounded, hence $K(S_\varepsilon)$ is bounded with a
+    controlled perimeter. A quantitative perimeter bound is left as a
+    \textsc{todo}; one may also add a square to $S_\varepsilon$ to make this
+    argument go through.
+\end{remark}
+
+\begin{theorem}[Approximating the Moser number]
+    \label{thm:approxAlgorithm}
+    \lean{Moser.CompactnessOutline.approxAlgorithm}
+    \uses{def:moserNumber, thm:finiteEpsilonNet, thm:lowerBound, thm:upperBound, thm:steinerGap, rem:perimeterBound}
+    Assume a perimeter bound $L_0$ on $K(S_\varepsilon)$ as in
+    Remark~\ref{rem:perimeterBound}. Then for any target accuracy $x > 0$ the
+    Moser cover number $M$ can be computed to within $x$ by the following
+    procedure:
+    \begin{enumerate}
+        \item choose $\varepsilon = x$ small enough that
+            $\varepsilon L_0 + \pi \varepsilon^2 \le x$;
+        \item compute a finite $\varepsilon$-net $S_\varepsilon$, for instance
+            by repeatedly locating worms not yet covered and adding them;
+        \item compute the minimal convex cover $K(S_\varepsilon)$.
+    \end{enumerate}
+    Then $\area(K(S_\varepsilon))$ is a lower bound and
+    $\area(K(S_\varepsilon)^{\varepsilon})$ an upper bound for $M$, and the two
+    differ by at most $x$.
+\end{theorem}
+\begin{proof}
+    \uses{thm:lowerBound, thm:upperBound, thm:steinerGap}
+    By Theorem~\ref{thm:lowerBound}, $\area(K(S_\varepsilon)) \le M$, and by
+    Theorem~\ref{thm:upperBound}, $M \le \area(K(S_\varepsilon)^{\varepsilon})$.
+    By Theorem~\ref{thm:steinerGap} the gap between these bounds equals
+    $\varepsilon L + \pi \varepsilon^2 \le \varepsilon L_0 + \pi \varepsilon^2
+    \le x$. Hence either bound approximates $M$ to within $x$.
+\end{proof}
 

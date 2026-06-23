@@ -1,8 +1,0 @@
-{
-  "label": "def:initialWorm",
-  "kind": "definition",
-  "title": "Initial worm",
-  "uses": [],
-  "statement": "The \\emph{initial worm} is a fixed convex polygon that any candidate\n    Moser set in the working set is assumed to contain an unshifted copy\n    of. We take it to be the isoceles right triangle with legs of length\n    $1/2$ and vertices $(0,0)$, $(1/2, 0)$, $(0, 1/2)$.",
-  "proof": null
-}
