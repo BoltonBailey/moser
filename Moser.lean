@@ -1,4 +1,3 @@
-import Moser.CompactnessOutline
 import Moser.Constants
 import Moser.DirectIsometry.Basic
 import Moser.DirectIsometry.Discretization
@@ -10,6 +9,6 @@ import Moser.Geometry.RationalPoint
 import Moser.Geometry.RationalUtility
 import Moser.Manipulation.Invariants
 import Moser.Manipulation.Operations
-import Moser.Real.MoserSet.Definition
+import Moser.Real.CompactnessOutline
 import Moser.Worm.Basic
 import Moser.Worm.Enumeration
