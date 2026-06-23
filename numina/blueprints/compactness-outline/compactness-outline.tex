@@ -7,10 +7,15 @@
 
 \begin{definition}[Worm]
     \label{def:worm}
-    A \emph{worm} is a $1$-Lipschitz curve $f : [0,1] \to \RR^2$. A worm is
-    \emph{pinned} if $f(0) = (0,0)$. Since $f$ is $1$-Lipschitz on $[0,1]$,
-    a pinned worm satisfies $\lvert f(x) \rvert \le x \le 1$ for all
-    $x \in [0,1]$.
+    A \emph{worm} is a $1$-Lipschitz curve $f : [0,1] \to \RR^2$.
+\end{definition}
+
+\begin{definition}[Pinned worm]
+    \label{def:pinnedWorm}
+    \uses{def:worm}
+    A worm $f$ is \emph{pinned} if $f(0) = (0,0)$. Since $f$ is $1$-Lipschitz
+    on $[0,1]$, a pinned worm satisfies $\lvert f(x) \rvert \le x \le 1$ for
+    all $x \in [0,1]$.
 \end{definition}
 
 \begin{definition}[$\varepsilon$-thickening]
@@ -21,14 +26,11 @@
     \[
         A^{\varepsilon} \;=\; \{\, x \in \RR^2 : \dist(x, A) \le \varepsilon \,\}.
     \]
-    We say a worm $f$ is \emph{$\varepsilon$-close} to a worm $g$ if
-    $\sup_{x \in [0,1]} \lvert f(x) - g(x) \rvert \le \varepsilon$, which
-    implies that the image of $f$ is contained in the
-    $\varepsilon$-thickening of the image of $g$.
 \end{definition}
 
 \begin{definition}[Grid polygonal worm]
     \label{def:gridPolygonalWorm}
+    \uses{def:pinnedWorm}
     Fix a step $\delta > 0$ and a vertex count $k \in \NN$. A
     \emph{$(k,\delta)$-grid polygonal worm} is a pinned worm obtained by
     choosing grid points $p_0, p_1, \dots, p_k \in \delta\ZZ \times \delta\ZZ$
@@ -39,72 +41,55 @@
 
 \section{A finite \texorpdfstring{$\varepsilon$}{epsilon}-net of polygonal worms}
 
-\begin{theorem}[Rounding a worm to the grid]
-    \label{thm:roundedWorm}
-    \uses{def:worm, def:gridPolygonalWorm, def:thickening}
-    Let $f : [0,1] \to \RR^2$ be a pinned $1$-Lipschitz worm, and let
-    $k \in \NN$ and $\delta > 0$. Define
-    \[
-        f_1 = \frac{1}{1 + 2\delta k}\, f,
-    \]
-    let $\tilde f(n/k)$ be a nearest point of $\delta\ZZ \times \delta\ZZ$ to
-    $f_1(n/k)$ for $0 \le n \le k$, and extend $\tilde f$ by linear
-    interpolation. Then $\tilde f$ is a $(k,\delta)$-grid polygonal worm and
-    \[
-        \sup_{x \in [0,1]} \lvert f(x) - \tilde f(x) \rvert
-            \;\le\; 2\delta k + \delta + \frac{1}{k}.
-    \]
+\begin{theorem}[Finite $\varepsilon$-net of worms]
+    \label{thm:finiteEpsilonNet}
+    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening}
+    For every $\varepsilon > 0$ there exist $k \in \NN$ and $\delta > 0$ and a
+    finite set $S_\varepsilon$ of $(k,\delta)$-grid polygonal worms such that
+    the image of every pinned worm is contained in the $\varepsilon$-thickening
+    of the image of some element of $S_\varepsilon$.
 \end{theorem}
 \begin{proof}
-    \uses{def:worm, def:gridPolygonalWorm}
-    The rescaling $f_1 = f / (1 + 2\delta k)$ is
-    $\tfrac{1}{1+2\delta k}$-Lipschitz. Because $f$ is pinned,
+    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening}
+    Choose $k > 2/\varepsilon$, so that $1/k < \varepsilon/2$, and then choose
+    $\delta > 0$ small enough that $2\delta k + \delta < \varepsilon/2$. Let
+    $S_\varepsilon$ be the set of all $(k,\delta)$-grid polygonal worms whose
+    nodes lie within distance $1$ of the origin; this is finite, since each of
+    the finitely many nodes ranges over the finitely many grid points of
+    $\delta\ZZ \times \delta\ZZ$ inside the unit disc.
+
+    Now fix a pinned worm $f$ and construct an element of $S_\varepsilon$ near
+    it. Set
+    \[
+        f_1 = \frac{1}{1 + 2\delta k}\, f ,
+    \]
+    which is $\tfrac{1}{1+2\delta k}$-Lipschitz; since $f$ is pinned,
     $\lvert f(x) \rvert \le 1$, so
     \[
         \lvert f(x) - f_1(x) \rvert
             = \lvert f(x) \rvert \cdot \frac{2\delta k}{1 + 2\delta k}
             \le 2\delta k .
     \]
-    Each node $f_1(n/k)$ is replaced by a nearest grid point, moving it by at
-    most $\delta$ (half a grid cell in each coordinate). Hence the nodes of
-    $\tilde f$ are within $\delta$ of those of $f_1$, and on each subinterval of
-    length $1/k$ the segment of $\tilde f$ has length at most
+    Let $\tilde f(n/k)$ be a nearest point of $\delta\ZZ \times \delta\ZZ$ to
+    $f_1(n/k)$ for $0 \le n \le k$, and extend $\tilde f$ by linear
+    interpolation. Each node moves by at most $\delta$ (half a grid cell in
+    each coordinate), so on each subinterval of length $1/k$ the segment of
+    $\tilde f$ has length at most
     $\tfrac{1}{k}\cdot\tfrac{1}{1+2\delta k} + 2\delta$; multiplying by $k$
     shows the Lipschitz constant of $\tilde f$ is at most
-    $\tfrac{1}{1+2\delta k}\,(1 + 2\delta k) = 1$, so $\tilde f$ is a worm.
-    Finally, comparing $f$ to $\tilde f$ at an arbitrary $x \in [0,1]$, the
-    rescaling contributes at most $2\delta k$, the grid rounding at most
-    $\delta$, and the linear interpolation between nodes at most $1/k$,
-    giving the stated bound.
-\end{proof}
-
-\begin{theorem}[Finite $\varepsilon$-net of worms]
-    \label{thm:finiteEpsilonNet}
-    \uses{def:worm, def:gridPolygonalWorm, def:thickening, thm:roundedWorm}
-    For every $\varepsilon > 0$ there is a finite set $S_\varepsilon$ of pinned
-    worms such that every pinned worm is $\varepsilon$-close to some element of
-    $S_\varepsilon$; equivalently, its image is contained in the
-    $\varepsilon$-thickening of the image of some element of $S_\varepsilon$.
-    Moreover $S_\varepsilon$ may be taken to consist of $(k,\delta)$-grid
-    polygonal worms, and is computable.
-\end{theorem}
-\begin{proof}
-    \uses{thm:roundedWorm}
-    Choose $k > 2/\varepsilon$, so that $1/k < \varepsilon/2$, and then choose
-    $\delta > 0$ small enough that $2\delta k + \delta < \varepsilon/2$. Let
-    $S_\varepsilon$ be the set of all $(k,\delta)$-grid polygonal worms whose
-    nodes lie within distance $1$ of the origin; this is a finite set, since
-    each of the finitely many nodes ranges over the finitely many grid points
-    of $\delta\ZZ \times \delta\ZZ$ inside the unit disc. Given any pinned worm
-    $f$, Theorem~\ref{thm:roundedWorm} produces a $(k,\delta)$-grid polygonal
-    worm $\tilde f \in S_\varepsilon$ with
+    $\tfrac{1}{1+2\delta k}\,(1 + 2\delta k) = 1$, so $\tilde f$ is a
+    $(k,\delta)$-grid polygonal worm, and its nodes lie within distance $1$ of
+    the origin, hence $\tilde f \in S_\varepsilon$. Comparing $f$ to $\tilde f$
+    at an arbitrary $x \in [0,1]$, the rescaling contributes at most
+    $2\delta k$, the grid rounding at most $\delta$, and the linear
+    interpolation at most $1/k$, so
     \[
-        \sup_x \lvert f(x) - \tilde f(x) \rvert
-            \le 2\delta k + \delta + \frac{1}{k} < \varepsilon .
+        \lvert f(x) - \tilde f(x) \rvert
+            \;\le\; 2\delta k + \delta + \frac{1}{k} < \varepsilon .
     \]
-    Hence $f$ is $\varepsilon$-close to $\tilde f$, and its image lies in the
-    $\varepsilon$-thickening of the image of $\tilde f$. Finiteness and the
-    explicit construction make $S_\varepsilon$ computable.
+    Therefore every point of the image of $f$ lies within $\varepsilon$ of the
+    image of $\tilde f$, i.e.\ the image of $f$ is contained in the
+    $\varepsilon$-thickening of the image of $\tilde f \in S_\varepsilon$.
 \end{proof}
 
 \section{Bounds on the Moser number}
@@ -171,11 +156,11 @@
     The $\varepsilon$-thickening $K^{\varepsilon}$ is convex. We claim it is a
     cover. Let $f$ be an arbitrary worm; after a translation--rotation we may
     assume $f$ is pinned. By Theorem~\ref{thm:finiteEpsilonNet} there is
-    $s \in S_\varepsilon$ and a translation--rotation $h$ with $f$
-    $\varepsilon$-close to $h \circ s$. Then $g_s \circ h^{-1}$ maps the image
-    of $f$ into the $\varepsilon$-thickening of the image of $g_s \circ s$,
-    which lies in $K^{\varepsilon}$. Hence $K^{\varepsilon}$ is a convex cover,
-    and $M \le \area(K^{\varepsilon})$.
+    $s \in S_\varepsilon$ such that the image of $f$ is contained in the
+    $\varepsilon$-thickening of the image of $s$. Applying the placement $g_s$,
+    the image of $g_s \circ f$ is contained in the $\varepsilon$-thickening of
+    the image of $g_s \circ s$, which lies in $K^{\varepsilon}$. Hence
+    $K^{\varepsilon}$ is a convex cover, and $M \le \area(K^{\varepsilon})$.
 \end{proof}
 
 \begin{theorem}[Steiner gap between the bounds]
