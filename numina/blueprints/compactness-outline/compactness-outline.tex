@@ -41,25 +41,32 @@
 
 \section{A finite \texorpdfstring{$\varepsilon$}{epsilon}-net of polygonal worms}
 
-\begin{theorem}[Finite $\varepsilon$-net of worms]
+\begin{definition}[$\varepsilon$-net of worms]
+    \label{def:epsilonNet}
+    \uses{def:pinnedWorm, def:thickening}
+    Let $\varepsilon > 0$. A set $S$ of worms is an \emph{$\varepsilon$-net of
+    worms} if the image of every pinned worm is contained in the
+    $\varepsilon$-thickening of the image of some element of $S$.
+\end{definition}
+
+\begin{theorem}[A finite grid $\varepsilon$-net exists]
     \label{thm:finiteEpsilonNet}
-    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening}
-    For every $\varepsilon > 0$ there exist $k \in \NN$ and $\delta > 0$ and a
-    finite set $S_\varepsilon$ of $(k,\delta)$-grid polygonal worms such that
-    the image of every pinned worm is contained in the $\varepsilon$-thickening
-    of the image of some element of $S_\varepsilon$.
+    \uses{def:gridPolygonalWorm, def:epsilonNet}
+    For every $\varepsilon > 0$ there exist $k \in \NN$ and $\delta > 0$ such
+    that the set $S_\varepsilon$ of $(k,\delta)$-grid polygonal worms whose
+    nodes lie within distance $1$ of the origin is finite and is an
+    $\varepsilon$-net of worms.
 \end{theorem}
 \begin{proof}
-    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening}
+    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening, def:epsilonNet}
     Choose $k > 2/\varepsilon$, so that $1/k < \varepsilon/2$, and then choose
-    $\delta > 0$ small enough that $2\delta k + \delta < \varepsilon/2$. Let
-    $S_\varepsilon$ be the set of all $(k,\delta)$-grid polygonal worms whose
-    nodes lie within distance $1$ of the origin; this is finite, since each of
-    the finitely many nodes ranges over the finitely many grid points of
+    $\delta > 0$ small enough that $2\delta k + \delta < \varepsilon/2$. With
+    these $k$ and $\delta$, the set $S_\varepsilon$ is finite, since each of the
+    finitely many nodes ranges over the finitely many grid points of
     $\delta\ZZ \times \delta\ZZ$ inside the unit disc.
 
-    Now fix a pinned worm $f$ and construct an element of $S_\varepsilon$ near
-    it. Set
+    It remains to check that $S_\varepsilon$ is an $\varepsilon$-net. Fix a
+    pinned worm $f$ and construct an element of $S_\varepsilon$ near it. Set
     \[
         f_1 = \frac{1}{1 + 2\delta k}\, f ,
     \]
@@ -141,7 +148,7 @@
 
 \begin{theorem}[Upper bound on the Moser number]
     \label{thm:upperBound}
-    \uses{def:moserNumber, def:minimalCover, def:thickening, thm:finiteEpsilonNet}
+    \uses{def:moserNumber, def:minimalCover, def:thickening, def:epsilonNet, thm:finiteEpsilonNet}
     Let $\varepsilon > 0$ and let $S_\varepsilon$ be a finite
     $\varepsilon$-net of worms as in Theorem~\ref{thm:finiteEpsilonNet}. Then
     \[
