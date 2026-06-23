@@ -10,5 +10,6 @@ import Moser.Geometry.RationalUtility
 import Moser.Manipulation.Invariants
 import Moser.Manipulation.Operations
 import Moser.Real.CompactnessOutline
+import Moser.Real.GridEpsilonNet
 import Moser.Worm.Basic
 import Moser.Worm.Enumeration
