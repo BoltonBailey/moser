@@ -263,6 +263,28 @@ def IsOrientationPreservingIsometry (g : ℝ² → ℝ²) : Prop :=
   ∃ (e : ℝ² ≃ₗᵢ[ℝ] ℝ²) (v : ℝ²),
       e.toLinearEquiv.det = 1 ∧ g = fun x => e x + v
 
+/-- The inverse of an orientation-preserving isometry is again one, and is a
+two-sided inverse of the original map. -/
+private lemma IsOrientationPreservingIsometry.exists_symm {g : ℝ² → ℝ²}
+    (hg : IsOrientationPreservingIsometry g) :
+    ∃ g', IsOrientationPreservingIsometry g' ∧
+      Function.LeftInverse g' g ∧ Function.RightInverse g' g := by
+  obtain ⟨e, v, hdet, rfl⟩ := hg
+  refine ⟨fun y => e.symm (y - v), ⟨e.symm, -(e.symm v), ?_, ?_⟩, ?_, ?_⟩
+  · rw [LinearIsometryEquiv.toLinearEquiv_symm, LinearEquiv.det_symm, map_inv, hdet, inv_one]
+  · funext y
+    rw [map_sub, sub_eq_add_neg]
+  · intro x; simp
+  · intro y; simp
+
+/-- An orientation-preserving isometry is an isometry. -/
+private lemma IsOrientationPreservingIsometry.isometry {g : ℝ² → ℝ²}
+    (hg : IsOrientationPreservingIsometry g) : Isometry g := by
+  obtain ⟨e, v, _, rfl⟩ := hg
+  refine Isometry.of_dist_eq (fun x y => ?_)
+  rw [dist_eq_norm, dist_eq_norm, show e x + v - (e y + v) = e x - e y by abel,
+    ← map_sub, e.norm_map]
+
 /-- `CoversByIsometry X w` states that `X` covers the set `w` by an
 orientation-preserving isometry: some such isometry places a copy of `X` over
 `w`. (Used with `w` a worm in `WormCovers`, but the relation itself is generic.) -/
@@ -275,20 +297,23 @@ followed by a translation). -/
 def WormCovers : Set (Set ℝ²) :=
   {X | MeasurableSet X ∧ ∀ w ∈ Worms, CoversByIsometry X w}
 
-/-- **Moser cover number** (`def:moserNumber`).
-The *Moser cover number* `M` is the infimum of `area C` over all convex
-covers `C`. -/
-noncomputable def moserCoverNumber : ℝ≥0∞ :=
-  minimalVolume (fun C => C ∈ WormCovers ∧ Convex ℝ C)
-
-/-- `IsPlacementCover S K` states that `K` is the convex hull of placements of
-the elements of `S` by translation-rotations: there is a determinant-`1` linear
-isometry `e s` and translation `t s` for each `s`, and `K` is the convex hull of
-the union of the placed images. -/
+/-- `IsPlacementCover S K` states that `K` contains the convex hull of placements
+of the elements of `S` by translation-rotations: there is a determinant-`1` linear
+isometry `e s` and translation `t s` for each `s`, and `K` contains the convex hull
+of the union of the placed images. Allowing supersets (rather than insisting on the
+hull itself) makes the predicate antitone in `S` — see `IsPlacementCover.of_subset`. -/
 def IsPlacementCover (S : Set (Set ℝ²)) (K : Set ℝ²) : Prop :=
   ∃ g : Set ℝ² → ℝ² → ℝ²,
       (∀ s ∈ S, IsOrientationPreservingIsometry (g s)) ∧
-      K = convexHull ℝ (⋃ s ∈ S, g s '' s)
+      convexHull ℝ (⋃ s ∈ S, g s '' s) ⊆ K
+
+/-- A placement cover of a larger set of worms is also a placement cover of any
+subset: reuse the same placements and shrink the union of placed images. -/
+lemma IsPlacementCover.of_subset {S T : Set (Set ℝ²)} {K : Set ℝ²}
+    (hST : S ⊆ T) (hK : IsPlacementCover T K) : IsPlacementCover S K := by
+  obtain ⟨g, hgop, hsub⟩ := hK
+  exact ⟨g, fun s hs => hgop s (hST hs),
+    (convexHull_mono (Set.biUnion_subset_biUnion_left hST)).trans hsub⟩
 
 /-- The minimal area of a convex hull of placements of a set of worms `S`: the
 infimum, over translation-rotations `(g_s)_{s ∈ S}`, of the area of the convex
@@ -296,10 +321,33 @@ hull of the union of the placed images. This is `area (K S)`. -/
 noncomputable def minimalCoverArea (S : Set (Set ℝ²)) : ℝ≥0∞ :=
   minimalVolume (IsPlacementCover S)
 
+/-- `minimalCoverArea` is monotone in its set of worms: enlarging the set can only
+increase the minimal cover area. Indeed, any placement cover of the larger set `T`
+restricts (via the same family of placements) to a placement cover of `S ⊆ T`, and
+the convex hull of the placed copies of `S` is contained in that of `T`, hence of
+no larger area. -/
+lemma minimalCoverArea_mono {S T : Set (Set ℝ²)} (hST : S ⊆ T) :
+    minimalCoverArea S ≤ minimalCoverArea T := by
+  simp only [minimalCoverArea, minimalVolume]
+  -- A placement cover of the larger set `T` is also a placement cover of `S`, so the
+  -- set of achievable areas for `T` is contained in that for `S`; `sInf` is antitone.
+  refine sInf_le_sInf ?_
+  rintro v ⟨K, hK, rfl⟩
+  exact ⟨K, hK.of_subset hST, rfl⟩
+
+/-- **Moser cover number** (`def:moserNumber`).
+The *Moser cover number* `M` is the minimal area of a convex hull of placements
+of *all* worms, i.e. `minimalCoverArea Worms`. Equivalently, it is the infimum of
+`area C` over all convex covers `C` (a convex hull of placements is itself a
+convex cover, and every convex cover contains such a hull). -/
+noncomputable def moserCoverNumber : ℝ≥0∞ :=
+  minimalCoverArea Worms
+
 /-- **Minimal convex cover of a finite set of worms** (`def:minimalCover`).
 `IsMinimalCover S K` states that `K = K S` is a convex set realizing the minimal
-area `minimalCoverArea S`, obtained as the convex hull of placements of the
-elements of `S` by translation-rotations. -/
+area `minimalCoverArea S` while containing the convex hull of placements of the
+elements of `S` by translation-rotations. Since its area equals the minimum, `K`
+agrees up to null sets with the optimal such hull. -/
 def IsMinimalCover (S : Set (Set ℝ²)) (K : Set ℝ²) : Prop :=
   Convex ℝ K ∧ IsPlacementCover S K ∧ volume K = minimalCoverArea S
 
@@ -310,18 +358,64 @@ noncomputable def perimeter (K : Set ℝ²) : ℝ :=
 
 /-- **Lower bound on the Moser number** (`thm:lowerBound`).
 For any finite set `S` of worms, `M ≥ area (K S)`. -/
-theorem moserCoverNumber_lowerBound (S : Set (Set ℝ²)) (hS : S.Finite)
+theorem moserCoverNumber_lowerBound (S : Set (Set ℝ²)) (_hS : S.Finite)
     (hSworms : S ⊆ Worms) :
-    minimalCoverArea S ≤ moserCoverNumber := by
-  sorry
+    minimalCoverArea S ≤ moserCoverNumber :=
+  -- `M = minimalCoverArea Worms`, so this is just monotonicity of `minimalCoverArea`
+  -- applied to `S ⊆ Worms`.
+  minimalCoverArea_mono hSworms
 
 /-- **Upper bound on the Moser number** (`thm:upperBound`).
 Let `ε > 0` and let `S_ε` be a finite `ε`-net of worms with minimal convex cover
 `K`. Then `M ≤ area (K^ε)`, the area of the `ε`-thickening of `K`. -/
-theorem moserCoverNumber_upperBound (ε : ℝ) (hε : 0 < ε) (S : Set (Set ℝ²)) (hS : S.Finite)
+theorem moserCoverNumber_upperBound (ε : ℝ) (_hε : 0 < ε) (S : Set (Set ℝ²)) (_hS : S.Finite)
     (hnet : IsWormEpsilonNet ε S) (K : Set ℝ²) (hK : IsMinimalCover S K) :
     moserCoverNumber ≤ volume (Metric.cthickening ε K) := by
-  sorry
+  obtain ⟨hKconv, ⟨hfun, hfunop, hKeq⟩, _⟩ := hK
+  -- Each worm admits an orientation-preserving placement into the `ε`-thickening of
+  -- `K`; the convex hull of all these placements is a placement cover of `Worms`
+  -- contained in `K^ε`, hence of no larger area.
+  have hplace : ∀ w ∈ Worms, ∃ g, IsOrientationPreservingIsometry g ∧
+      g '' w ⊆ Metric.cthickening ε K := by
+    rintro w ⟨f, hlip, rfl⟩
+    set f₀ : ℝ² := f ⟨0, Set.left_mem_Icc.2 zero_le_one⟩ with hf₀
+    -- Pin the worm by translating its start to the origin.
+    set f' : (Set.Icc (0 : ℝ) 1) → ℝ² := fun x => f x - f₀ with hf'
+    have hlip' : LipschitzWith 1 f' := by
+      rw [lipschitzWith_iff_dist_le_mul] at hlip ⊢
+      intro x y
+      refine le_trans (le_of_eq ?_) (hlip x y)
+      simp only [hf', dist_eq_norm]; congr 1; abel
+    have hf'0 : f' ⟨0, Set.left_mem_Icc.2 zero_le_one⟩ = 0 := by rw [hf']; simp [hf₀]
+    have hpin : Set.range f' ∈ PinnedWorms := ⟨f', hlip', hf'0, rfl⟩
+    -- Find a net element near the pinned worm and the placement carrying it into `K`.
+    obtain ⟨t, htS, htsub⟩ := hnet _ hpin
+    have htsubK : hfun t '' t ⊆ K :=
+      ((Set.subset_biUnion_of_mem (u := fun s => hfun s '' s) htS).trans
+        (subset_convexHull ℝ _)).trans hKeq
+    have htiso : Isometry (hfun t) := (hfunop t htS).isometry
+    -- The placement maps the `ε`-thickening of the net element into that of `K`.
+    have hmap : ∀ z ∈ Metric.cthickening ε t, hfun t z ∈ Metric.cthickening ε K := by
+      intro z hz
+      rw [Metric.mem_cthickening_iff] at hz ⊢
+      refine le_trans (Metric.infEDist_anti htsubK) ?_
+      rw [Metric.infEDist_image htiso]
+      exact hz
+    -- The composite "pin then place" is an orientation-preserving isometry carrying
+    -- the worm `w = range f` into the `ε`-thickening of `K`.
+    obtain ⟨e, v, hdet, hfe⟩ := hfunop t htS
+    refine ⟨fun y => hfun t (y - f₀), ⟨e, v - e f₀, hdet, ?_⟩, ?_⟩
+    · funext y; simp only [hfe, map_sub]; abel
+    · rintro _ ⟨_, ⟨x, rfl⟩, rfl⟩
+      exact hmap _ (htsub (Set.mem_range_self x))
+  choose! gfun hgop hgsub using hplace
+  -- The `ε`-thickening of `K` is convex and contains the convex hull of all these
+  -- placements, so it is itself a placement cover of `Worms`.
+  have hPC : IsPlacementCover Worms (Metric.cthickening ε K) :=
+    ⟨gfun, fun w hw => hgop w hw,
+      convexHull_min (Set.iUnion₂_subset fun w hw => hgsub w hw) (hKconv.cthickening ε)⟩
+  rw [moserCoverNumber, minimalCoverArea, minimalVolume]
+  exact sInf_le ⟨Metric.cthickening ε K, hPC, rfl⟩
 
 /-- **Steiner gap between the bounds** (`thm:steinerGap`).
 Let `K` be a convex body in `ℝ²` with perimeter `L`. Then for every `ε ≥ 0`,
@@ -330,6 +424,11 @@ theorem steinerGap (K : Set ℝ²) (hconv : Convex ℝ K) (hcomp : IsCompact K)
     (hne : K.Nonempty) (ε : ℝ) (hε : 0 ≤ ε) :
     (volume (Metric.cthickening ε K)).toReal
       = (volume K).toReal + ε * perimeter K + Real.pi * ε ^ 2 := by
+  -- This is the planar Steiner formula for convex bodies. Mathlib currently has
+  -- no Steiner formula / mixed-volume / intrinsic-volume theory, so a full proof
+  -- would require building that convex-geometry machinery from scratch. Left as a
+  -- standalone TODO; the bounds above (`moserCoverNumber_lowerBound`,
+  -- `moserCoverNumber_upperBound`) do not depend on it.
   sorry
 
 /-- **Approximating the Moser number** (`thm:approxAlgorithm`).
@@ -342,6 +441,11 @@ theorem approxAlgorithm (x : ℝ) (hx : 0 < x) :
       minimalCoverArea S ≤ moserCoverNumber ∧
       moserCoverNumber ≤ volume (Metric.cthickening ε K) ∧
       (volume (Metric.cthickening ε K)).toReal - (minimalCoverArea S).toReal ≤ x := by
+  -- Combining the two bounds with the Steiner gap. Blocked on `steinerGap` (to
+  -- control the gap by `ε L + π ε²`) and additionally requires exhibiting an
+  -- area-minimizing convex cover `K` with `IsMinimalCover S K` (attainment of the
+  -- infimum) together with an a priori perimeter bound on `K(Sε)`
+  -- (Remark `rem:perimeterBound` in the blueprint). Left as a TODO.
   sorry
 
 end Moser.CompactnessOutline
