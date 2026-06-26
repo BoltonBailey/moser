@@ -417,10 +417,10 @@ theorem moserCoverNumber_upperBound (ε : ℝ) (_hε : 0 < ε) (S : Set (Set ℝ
   rw [moserCoverNumber, minimalCoverArea, minimalVolume]
   exact sInf_le ⟨Metric.cthickening ε K, hPC, rfl⟩
 
-/-- **Steiner gap between the bounds** (`thm:steinerGap`).
+/-- **Minkowski Steiner gap between the bounds** (`thm:minkowskiSteinerGap`).
 Let `K` be a convex body in `ℝ²` with perimeter `L`. Then for every `ε ≥ 0`,
 `area (K^ε) = area K + ε L + π ε²`. -/
-theorem steinerGap (K : Set ℝ²) (hconv : Convex ℝ K) (hcomp : IsCompact K)
+theorem minkowskiSteinerGap (K : Set ℝ²) (hconv : Convex ℝ K) (hcomp : IsCompact K)
     (hne : K.Nonempty) (ε : ℝ) (hε : 0 ≤ ε) :
     (volume (Metric.cthickening ε K)).toReal
       = (volume K).toReal + ε * perimeter K + Real.pi * ε ^ 2 := by
@@ -441,7 +441,7 @@ theorem approxAlgorithm (x : ℝ) (hx : 0 < x) :
       minimalCoverArea S ≤ moserCoverNumber ∧
       moserCoverNumber ≤ volume (Metric.cthickening ε K) ∧
       (volume (Metric.cthickening ε K)).toReal - (minimalCoverArea S).toReal ≤ x := by
-  -- Combining the two bounds with the Steiner gap. Blocked on `steinerGap` (to
+  -- Combining the two bounds with the Steiner gap. Blocked on `minkowskiSteinerGap` (to
   -- control the gap by `ε L + π ε²`) and additionally requires exhibiting an
   -- area-minimizing convex cover `K` with `IsMinimalCover S K` (attainment of the
   -- infimum) together with an a priori perimeter bound on `K(Sε)`

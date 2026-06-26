@@ -865,8 +865,8 @@ formula. The development is carried out in
 \end{proof}
 
 \begin{theorem}[Steiner gap between the bounds]
-    \label{thm:steinerGap}
-    \lean{Moser.CompactnessOutline.steinerGap}
+    \label{thm:minkowskiSteinerGap}
+    \lean{Moser.CompactnessOutline.minkowskiSteinerGap}
     \uses{def:minimalCover, def:thickening}
     Let $K$ be a convex body in $\RR^2$ with perimeter $L$. Then for every
     $\varepsilon \ge 0$,
@@ -889,8 +889,8 @@ formula. The development is carried out in
 
 \begin{remark}[Perimeter bound]
     \label{rem:perimeterBound}
-    \uses{def:minimalCover, thm:steinerGap}
-    To turn Theorem~\ref{thm:steinerGap} into an effective error bound one needs
+    \uses{def:minimalCover, thm:minkowskiSteinerGap}
+    To turn Theorem~\ref{thm:minkowskiSteinerGap} into an effective error bound one needs
     an a priori bound on the perimeter $L$ of $K(S_\varepsilon)$. Insisting that
     $S_\varepsilon$ contains a fixed closed worm (a loop, e.g.\ a small circle)
     forces every cover to be bounded, hence $K(S_\varepsilon)$ is bounded with a
@@ -902,7 +902,7 @@ formula. The development is carried out in
 \begin{theorem}[Approximating the Moser number]
     \label{thm:approxAlgorithm}
     \lean{Moser.CompactnessOutline.approxAlgorithm}
-    \uses{def:moserNumber, thm:finiteEpsilonNet, thm:lowerBound, thm:upperBound, thm:steinerGap, rem:perimeterBound}
+    \uses{def:moserNumber, thm:finiteEpsilonNet, thm:lowerBound, thm:upperBound, thm:minkowskiSteinerGap, rem:perimeterBound}
     Assume a perimeter bound $L_0$ on $K(S_\varepsilon)$ as in
     Remark~\ref{rem:perimeterBound}. Then for any target accuracy $x > 0$ the
     Moser cover number $M$ can be computed to within $x$ by the following
@@ -919,10 +919,10 @@ formula. The development is carried out in
     differ by at most $x$.
 \end{theorem}
 \begin{proof}
-    \uses{thm:lowerBound, thm:upperBound, thm:steinerGap}
+    \uses{thm:lowerBound, thm:upperBound, thm:minkowskiSteinerGap}
     By Theorem~\ref{thm:lowerBound}, $\area(K(S_\varepsilon)) \le M$, and by
     Theorem~\ref{thm:upperBound}, $M \le \area(K(S_\varepsilon)^{\varepsilon})$.
-    By Theorem~\ref{thm:steinerGap} the gap between these bounds equals
+    By Theorem~\ref{thm:minkowskiSteinerGap} the gap between these bounds equals
     $\varepsilon L + \pi \varepsilon^2 \le \varepsilon L_0 + \pi \varepsilon^2
     \le x$. Hence either bound approximates $M$ to within $x$.
 \end{proof}
