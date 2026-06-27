@@ -5,6 +5,7 @@ import Moser.Geometry.AllowableAdditions
 import Moser.Geometry.HalfSpaces
 import Moser.Geometry.Polygon
 import Moser.Geometry.PolygonArea
+import Moser.Geometry.PolygonWidget
 import Moser.Geometry.RationalPoint
 import Moser.Geometry.RationalUtility
 import Moser.Manipulation.Invariants

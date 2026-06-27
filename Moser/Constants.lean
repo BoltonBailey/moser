@@ -19,7 +19,7 @@ namespace Moser
 Area threshold for candidate Moser sets (0.232240)
 This is the number we are trying to beat with our working set polygons.
 -/
-def areaThreshold : ℚ := .divInt 232240 1000000
+def areaThreshold : ℚ := 232240 / 1000000
 
 /--
 The isoceles right triangle with legs of length 1/2.
@@ -31,8 +31,8 @@ def IsocelesRightTriangleWorm : ConvexPolygon ℚ where
   vertices := fun i =>
     match i with
     | ⟨0, _⟩ => ![0, 0]
-    | ⟨1, _⟩ => ![.divInt 1 2, 0]
-    | ⟨2, _⟩ => ![0, .divInt 1 2]
+    | ⟨1, _⟩ => ![1 / 2, 0]
+    | ⟨2, _⟩ => ![0, 1 / 2]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
   vertices_extremePoints := by native_decide
@@ -47,9 +47,9 @@ def SquareWorm : ConvexPolygon ℚ where
   vertices := fun i =>
     match i with
     | ⟨0, _⟩ => ![0, 0]
-    | ⟨1, _⟩ => ![.divInt 1 3, 0]
-    | ⟨2, _⟩ => ![.divInt 1 3, .divInt 1 3]
-    | ⟨3, _⟩ => ![0, .divInt 1 3]
+    | ⟨1, _⟩ => ![1 / 3, 0]
+    | ⟨2, _⟩ => ![1 / 3, 1 / 3]
+    | ⟨3, _⟩ => ![0, 1 / 3]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
   vertices_extremePoints := by native_decide
@@ -65,8 +65,8 @@ def RightTriangleOneThirdWorm : ConvexPolygon ℚ where
   vertices := fun i =>
     match i with
     | ⟨0, _⟩ => ![0, 0]
-    | ⟨1, _⟩ => ![.divInt 1 3, 0]
-    | ⟨2, _⟩ => ![0, .divInt 2 3]
+    | ⟨1, _⟩ => ![1 / 3, 0]
+    | ⟨2, _⟩ => ![0, 2 / 3]
     | _ => ![0, 0] -- This case won't happen due to the finiteness of vertex_count
   nodup := by native_decide
   vertices_extremePoints := by native_decide
@@ -133,7 +133,7 @@ def LocationRange : ConvexPolygon ℚ where
   vertices_extremePoints := by native_decide
 
 /-- A rational upper bound on `√2`, accurate to 15 decimal places. -/
-def upperBoundSqrtTwo : ℚ  := .divInt 1414213562373095 1000000000000000
+def upperBoundSqrtTwo : ℚ  := 1414213562373095 / 1000000000000000
 
 /--
 An upper bound on the distance from the origin for points in the LocationRange
