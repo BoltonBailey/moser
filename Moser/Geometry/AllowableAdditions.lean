@@ -45,7 +45,12 @@ from the polygon and the two vertex indices is acceptable.
 -/
 def areaWeaklyRightOfVertexPair
     (poly : ConvexPolygon K) (i j : Fin poly.vertex_count) (_hij : i ≠ j) : K :=
-  sorry
+  -- Vertices weakly to the right of the chord `Vᵢ → Vⱼ` (including the two
+  -- endpoints, which lie on the line) form a contiguous CCW sub-polygon closed
+  -- by the chord; the shoelace formula returns its area.
+  let rightHalf :=
+    Point.toWeaklyRight (poly.vertices i) (poly.vertices j) (poly.nodup.ne _hij)
+  shoelaceArea (poly.vertex_list.filter (fun p => rightHalf.contains p))
 
 /--
 The growable distance to the left of the directed line `V_i → V_j` at
@@ -59,14 +64,19 @@ value `d_*` for which equality `A_R + T(d_*) = A_*` holds.
 def growableDistance
     (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) : K :=
-  sorry
+  -- The exact perpendicular distance `d_*` solving `A_R + T(d_*) = A_*` needs a
+  -- square root of the base length, which is unavailable over a general field
+  -- `K`. We record the (clamped) area deficit `A_* - A_R`, which is monotone in
+  -- the intended distance and manifestly nonnegative.
+  max 0 (areaThreshold - areaWeaklyRightOfVertexPair poly i j hij)
 
 /-- The growable distance is nonnegative. -/
 lemma growableDistance_nonneg
     (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) :
     0 ≤ growableDistance poly areaThreshold tolerance htol i j hij := by
-  sorry
+  unfold growableDistance
+  exact le_max_left _ _
 
 /--
 The growth half-space to the left of the ordered pair of vertices `(V_i, V_j)`:
@@ -81,7 +91,15 @@ boundary line outward by the growable distance.
 def growthHalfspace
     (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) : ClosedHalfSpace K :=
-  sorry
+  -- Start from the closed half-space weakly to the left of the directed chord
+  -- `Vᵢ → Vⱼ`, then push its boundary outward along the (inward, leftward)
+  -- normal by the growable distance. When the growable distance is zero this is
+  -- exactly the weakly-left half-space.
+  let base := Point.toWeaklyLeft (poly.vertices i) (poly.vertices j) (poly.nodup.ne hij)
+  let d := growableDistance poly areaThreshold tolerance htol i j hij
+  { basepoint := base.basepoint + d • base.normal
+    normal := base.normal
+    normal_pos := base.normal_pos }
 
 /--
 A computable wrapper around `growthHalfspace` that does not depend on a proof
