@@ -580,6 +580,8 @@ specified rational tolerance $\tau$.
 
 \begin{proposition}[Big set removal preserves the working set invariant]
   \label{prop:bigSetRemoval-correct}
+  \lean{Moser.WorkingSet.ContainsInitialWorm.bigSetRemoval}
+  \leanok
   \uses{def:bigSetRemoval, def:moser-set}
   If a working set satisfies Invariant~2 of
   Definition~\ref{def:workingSet}, so does the result of big set removal.
@@ -590,13 +592,22 @@ specified rational tolerance $\tau$.
   \lean{Moser.WorkingSet.supersetRemoval}
   \leanok
   \uses{def:workingSet, def:contains}
-  Remove every polygon $p$ in the list for which some distinct polygon
-  $q$ in the list is a subset of $p$. The smaller $q$ already witnesses
-  Invariant~2 whenever $p$ does.
+  Process the polygons of the list sequentially, maintaining a list of
+  retained polygons: a polygon $p$ is dropped when some already-retained
+  polygon is a subset of $p$, and when $p$ is retained, any retained
+  polygons having $p$ as a subset are dropped. A retained subset $q$
+  already witnesses Invariant~2 whenever $p$ does. (The sequential form
+  matters: the vertex-containment test is not antisymmetric --- two
+  distinct polygons, e.g.\ with cyclically rotated vertex lists, can each
+  contain the other --- and the symmetric filter ``drop $p$ whenever some
+  other $q \subseteq p$ is present'' would delete both members of such a
+  pair, potentially removing the last witness of Invariant~3.)
 \end{definition}
 
 \begin{proposition}[Superset removal preserves the working set invariant]
   \label{prop:supersetRemoval-correct}
+  \lean{Moser.WorkingSet.ContainsInitialWorm.supersetRemoval}
+  \leanok
   \uses{def:supersetRemoval, def:moser-set}
   If a working set satisfies Invariant~2, so does the result of superset
   removal.

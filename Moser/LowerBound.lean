@@ -100,12 +100,142 @@ end ConvexPolygon
 namespace Moser
 
 /-- `InitialWorm` (the isoceles right triangle with legs `1/2`) is the convex hull
-of a genuine worm: the L-shaped unit-length path `(0,1/2) → (0,0) → (1/2,0)`.
-
-Leaf `sorry` of the spine. Routine: parametrize the path by arc length (it is
-`1`-Lipschitz) and compute the hull of its range. -/
+of a genuine worm: the L-shaped unit-length path `(0,1/2) → (0,0) → (1/2,0)`,
+parametrized by arc length. -/
 theorem initialWorm_isWormHull : InitialWorm.IsWormHull := by
-  sorry
+  -- The three vertices of `InitialWorm` in the real plane.
+  set A : ℝ² := WithLp.toLp 2 ![0, 1 / 2] with hA
+  set O : ℝ² := WithLp.toLp 2 ![0, 0] with hO
+  set B : ℝ² := WithLp.toLp 2 ![1 / 2, 0] with hB
+  -- The L-shaped path by arc length: down the `y`-axis, then out the `x`-axis.
+  set f : Set.Icc (0 : ℝ) 1 → ℝ² :=
+    fun t => WithLp.toLp 2 ![max 0 (t.1 - 1 / 2), max 0 (1 / 2 - t.1)] with hfdef
+  -- The coordinatewise square estimate behind the Lipschitz bound: at most one
+  -- coordinate varies on each side of the corner, and the mixed case gains a
+  -- nonnegative cross term.
+  have hcoord : ∀ s t : ℝ,
+      (max 0 (s - 1 / 2) - max 0 (t - 1 / 2)) ^ 2
+        + (max 0 (1 / 2 - s) - max 0 (1 / 2 - t)) ^ 2 ≤ (s - t) ^ 2 := by
+    intro s t
+    rcases le_total s (1 / 2 : ℝ) with hs | hs <;> rcases le_total t (1 / 2 : ℝ) with ht | ht
+    · rw [max_eq_left (show s - 1 / 2 ≤ (0 : ℝ) by linarith),
+        max_eq_left (show t - 1 / 2 ≤ (0 : ℝ) by linarith),
+        max_eq_right (show (0 : ℝ) ≤ 1 / 2 - s by linarith),
+        max_eq_right (show (0 : ℝ) ≤ 1 / 2 - t by linarith)]
+      nlinarith
+    · rw [max_eq_left (show s - 1 / 2 ≤ (0 : ℝ) by linarith),
+        max_eq_right (show (0 : ℝ) ≤ t - 1 / 2 by linarith),
+        max_eq_right (show (0 : ℝ) ≤ 1 / 2 - s by linarith),
+        max_eq_left (show 1 / 2 - t ≤ (0 : ℝ) by linarith)]
+      nlinarith [mul_nonneg (show (0 : ℝ) ≤ t - 1 / 2 by linarith)
+        (show (0 : ℝ) ≤ 1 / 2 - s by linarith)]
+    · rw [max_eq_right (show (0 : ℝ) ≤ s - 1 / 2 by linarith),
+        max_eq_left (show t - 1 / 2 ≤ (0 : ℝ) by linarith),
+        max_eq_left (show 1 / 2 - s ≤ (0 : ℝ) by linarith),
+        max_eq_right (show (0 : ℝ) ≤ 1 / 2 - t by linarith)]
+      nlinarith [mul_nonneg (show (0 : ℝ) ≤ s - 1 / 2 by linarith)
+        (show (0 : ℝ) ≤ 1 / 2 - t by linarith)]
+    · rw [max_eq_right (show (0 : ℝ) ≤ s - 1 / 2 by linarith),
+        max_eq_right (show (0 : ℝ) ≤ t - 1 / 2 by linarith),
+        max_eq_left (show 1 / 2 - s ≤ (0 : ℝ) by linarith),
+        max_eq_left (show 1 / 2 - t ≤ (0 : ℝ) by linarith)]
+      nlinarith
+  have hlip : LipschitzWith 1 f := by
+    refine LipschitzWith.of_dist_le_mul fun s t => ?_
+    rw [NNReal.coe_one, one_mul, Subtype.dist_eq, Real.dist_eq, EuclideanSpace.dist_eq,
+      Fin.sum_univ_two,
+      show |s.1 - t.1| = Real.sqrt ((s.1 - t.1) ^ 2) from (Real.sqrt_sq_eq_abs _).symm]
+    refine Real.sqrt_le_sqrt ?_
+    simp only [hfdef, PiLp.toLp_apply, Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.head_cons, Real.dist_eq, sq_abs]
+    exact hcoord s.1 t.1
+  -- Explicit values of the path on each leg.
+  have hfle : ∀ t : Set.Icc (0 : ℝ) 1, t.1 ≤ 1 / 2 →
+      f t = WithLp.toLp 2 ![(0 : ℝ), 1 / 2 - t.1] := by
+    intro t ht
+    simp only [hfdef]
+    refine congrArg _ (funext fun i => ?_)
+    fin_cases i
+    · exact max_eq_left (by linarith)
+    · exact max_eq_right (by linarith)
+  have hfge : ∀ t : Set.Icc (0 : ℝ) 1, 1 / 2 ≤ t.1 →
+      f t = WithLp.toLp 2 ![t.1 - 1 / 2, (0 : ℝ)] := by
+    intro t ht
+    simp only [hfdef]
+    refine congrArg _ (funext fun i => ?_)
+    fin_cases i
+    · exact max_eq_right (by linarith)
+    · exact max_eq_left (by linarith)
+  -- The range of the path is the union of the two legs.
+  have hrange : Set.range f = segment ℝ A O ∪ segment ℝ O B := by
+    ext x
+    simp only [Set.mem_range, Set.mem_union, segment, Set.mem_setOf_eq]
+    constructor
+    · rintro ⟨t, rfl⟩
+      rcases le_total t.1 (1 / 2 : ℝ) with ht | ht
+      · refine Or.inl ⟨1 - 2 * t.1, 2 * t.1, by linarith, by linarith [t.2.1],
+          by ring, ?_⟩
+        rw [hfle t ht]
+        simp only [hA, hO, ← WithLp.toLp_smul, ← WithLp.toLp_add]
+        refine congrArg _ (funext fun i => ?_)
+        fin_cases i <;> simp <;> ring
+      · refine Or.inr ⟨2 - 2 * t.1, 2 * t.1 - 1, by linarith [t.2.2], by linarith,
+          by ring, ?_⟩
+        rw [hfge t ht]
+        simp only [hB, hO, ← WithLp.toLp_smul, ← WithLp.toLp_add]
+        refine congrArg _ (funext fun i => ?_)
+        fin_cases i <;> simp <;> ring
+    · rintro (⟨u, v, hu, hv, huv, rfl⟩ | ⟨u, v, hu, hv, huv, rfl⟩)
+      · refine ⟨⟨v / 2, by constructor <;> linarith⟩, ?_⟩
+        rw [hfle _ (show v / 2 ≤ (1 : ℝ) / 2 by linarith)]
+        simp only [hA, hO, ← WithLp.toLp_smul, ← WithLp.toLp_add]
+        refine congrArg _ (funext fun i => ?_)
+        fin_cases i <;> simp <;> linarith
+      · refine ⟨⟨1 / 2 + v / 2, by constructor <;> linarith⟩, ?_⟩
+        rw [hfge _ (show (1 : ℝ) / 2 ≤ 1 / 2 + v / 2 by linarith)]
+        simp only [hB, hO, ← WithLp.toLp_smul, ← WithLp.toLp_add]
+        refine congrArg _ (funext fun i => ?_)
+        fin_cases i <;> simp <;> linarith
+  refine ⟨Set.range f, ⟨f, hlip, rfl⟩, ?_⟩
+  -- The hull of the two legs is the hull of the three vertices.
+  rw [hrange, ← convexHull_pair (𝕜 := ℝ) A O, ← convexHull_pair (𝕜 := ℝ) O B,
+    convexHull_convexHull_union_left, convexHull_convexHull_union_right,
+    show ({A, O} : Set ℝ²) ∪ {O, B} = {A, O, B} by
+      ext x
+      simp only [Set.mem_union, Set.mem_insert_iff, Set.mem_singleton_iff]
+      tauto]
+  unfold ConvexPolygon.realHull
+  congr 1
+  ext x
+  simp only [Set.mem_insert_iff, Set.mem_singleton_iff, Set.mem_range]
+  constructor
+  · rintro (rfl | rfl | rfl)
+    · refine ⟨⟨2, by decide⟩, ?_⟩
+      rw [hA]
+      change Point.toEuclidean ![0, 1 / 2] = _
+      norm_num [Point.toEuclidean]
+    · refine ⟨⟨0, by decide⟩, ?_⟩
+      rw [hO]
+      change Point.toEuclidean ![0, 0] = _
+      norm_num [Point.toEuclidean]
+    · refine ⟨⟨1, by decide⟩, ?_⟩
+      rw [hB]
+      change Point.toEuclidean ![1 / 2, 0] = _
+      norm_num [Point.toEuclidean]
+  · rintro ⟨i, rfl⟩
+    fin_cases i
+    · refine Or.inr (Or.inl ?_)
+      rw [hO]
+      change Point.toEuclidean ![0, 0] = _
+      norm_num [Point.toEuclidean]
+    · refine Or.inr (Or.inr ?_)
+      rw [hB]
+      change Point.toEuclidean ![1 / 2, 0] = _
+      norm_num [Point.toEuclidean]
+    · refine Or.inl ?_
+      rw [hA]
+      change Point.toEuclidean ![0, 1 / 2] = _
+      norm_num [Point.toEuclidean]
 
 /-! ## Pinned small covers and the working-set invariants -/
 
@@ -151,6 +281,43 @@ theorem initial_sound : initial.Sound := by
   intro K hK
   exact ⟨InitialWorm, List.mem_singleton.mpr rfl, hK.pinned⟩
 
+/-- `bigSetRemoval` preserves Invariant 2: it only removes polygons. -/
+theorem ContainsInitialWorm.bigSetRemoval {s : WorkingSet} (hs : s.ContainsInitialWorm) :
+    s.bigSetRemoval.ContainsInitialWorm := fun p hp => hs p (List.mem_filter.mp hp).1
+
+/-- Every polygon retained by the `supersetRemoval` fold comes from the
+accumulator or from the pending list. -/
+private theorem mem_of_mem_foldl_supersetRemovalStep {q : ConvexPolygon ℚ}
+    (l : List (ConvexPolygon ℚ)) : ∀ kept, q ∈ l.foldl supersetRemovalStep kept →
+      q ∈ kept ∨ q ∈ l := by
+  induction l with
+  | nil => exact fun kept h => Or.inl (by simpa using h)
+  | cons a l ih =>
+    intro kept h
+    rw [List.foldl_cons] at h
+    rcases ih _ h with hq | hq
+    · unfold supersetRemovalStep at hq
+      split_ifs at hq with hc
+      · exact Or.inl hq
+      · rw [List.mem_append] at hq
+        rcases hq with hq | hq
+        · exact Or.inl (List.mem_filter.mp hq).1
+        · exact Or.inr (List.mem_cons.mpr (Or.inl (List.mem_singleton.mp hq)))
+    · exact Or.inr (List.mem_cons_of_mem a hq)
+
+/-- `supersetRemoval` preserves Invariant 2: its output polygons all come from
+the input. -/
+theorem ContainsInitialWorm.supersetRemoval {s : WorkingSet} (hs : s.ContainsInitialWorm) :
+    s.supersetRemoval.ContainsInitialWorm := by
+  intro p hp
+  rcases mem_of_mem_foldl_supersetRemovalStep s.polygons [] hp with h | h
+  · simp at h
+  · exact hs p h
+
+/-- The composite cleanup pass preserves Invariant 2. -/
+theorem ContainsInitialWorm.cleanup {s : WorkingSet} (hs : s.ContainsInitialWorm) :
+    s.cleanup.ContainsInitialWorm := hs.bigSetRemoval.supersetRemoval
+
 /-- `bigSetRemoval` preserves soundness: a polygon whose rational area exceeds
 `areaThreshold` cannot fit inside a small cover, by the area bridge, so removing
 such polygons never removes the witness. -/
@@ -165,16 +332,53 @@ theorem Sound.bigSetRemoval {s : WorkingSet} (hs : s.Sound) : s.bigSetRemoval.So
     (ENNReal.ofReal_le_ofReal_iff (by norm_num [areaThreshold])).mp hvol
   simpa using (by exact_mod_cast harea : p.area ≤ areaThreshold)
 
-/-- `supersetRemoval` preserves soundness: if the witness polygon `p` is removed
-because some strictly smaller polygon `q ⊆ p` is present, then a minimal such `q`
-survives the filter and is itself contained in the cover (via the containment
-bridge `ConvexPolygon.realHull_subset_realHull`).
+/-- The fold invariant behind `Sound.supersetRemoval`: each
+`supersetRemovalStep` preserves the existence, among the retained and pending
+polygons together, of a witness whose real region lies inside `K`. When the
+step drops a polygon it is because a polygon contained in it (by `isSubsetOf`,
+hence with smaller real region via the containment bridge
+`ConvexPolygon.realHull_subset_realHull`) is retained in its stead. -/
+private theorem exists_realHull_subset_foldl_supersetRemovalStep
+    {K : Set ℝ²} (l kept : List (ConvexPolygon ℚ))
+    (h : ∃ q ∈ kept ++ l, q.realHull ⊆ K) :
+    ∃ q ∈ l.foldl supersetRemovalStep kept, q.realHull ⊆ K := by
+  induction l generalizing kept with
+  | nil => simpa using h
+  | cons a l ih =>
+    rw [List.foldl_cons]
+    apply ih
+    obtain ⟨q, hq, hqK⟩ := h
+    rw [List.mem_append, List.mem_cons] at hq
+    unfold supersetRemovalStep
+    split_ifs with hc
+    · -- some retained polygon is contained in `a`; `a` is dropped
+      obtain ⟨q0, hq0, hq0a⟩ := List.any_eq_true.mp hc
+      rcases hq with hq | rfl | hq
+      · exact ⟨q, List.mem_append_left _ hq, hqK⟩
+      · exact ⟨q0, List.mem_append_left _ hq0,
+          (ConvexPolygon.realHull_subset_realHull hq0a).trans hqK⟩
+      · exact ⟨q, List.mem_append_right _ hq, hqK⟩
+    · -- `a` is retained; retained polygons containing `a` are dropped
+      have haMem : a ∈ (kept.filter fun q => !a.isSubsetOf q) ++ [a] :=
+        List.mem_append_right _ (List.mem_singleton.mpr rfl)
+      rcases hq with hq | rfl | hq
+      · by_cases haq : a.isSubsetOf q = true
+        · exact ⟨a, List.mem_append_left _ haMem,
+            (ConvexPolygon.realHull_subset_realHull haq).trans hqK⟩
+        · refine ⟨q, List.mem_append_left _ (List.mem_append_left _ ?_), hqK⟩
+          exact List.mem_filter.mpr ⟨hq, by simp [haq]⟩
+      · exact ⟨q, List.mem_append_left _ haMem, hqK⟩
+      · exact ⟨q, List.mem_append_right _ hq, hqK⟩
 
-Leaf `sorry` of the spine. Needs a finite minimal-element argument for the
-`isSubsetOf` preorder, plus transitivity of `isSubsetOf` (or arguing directly with
-`realHull` containment). -/
+/-- `supersetRemoval` preserves soundness: whenever the step drops a witness
+polygon, a polygon contained in it — hence itself inside the cover, by the
+containment bridge `ConvexPolygon.realHull_subset_realHull` — is retained in
+its stead (`exists_realHull_subset_foldl_supersetRemovalStep`). -/
 theorem Sound.supersetRemoval {s : WorkingSet} (hs : s.Sound) : s.supersetRemoval.Sound := by
-  sorry
+  intro K hK
+  obtain ⟨p, hp, hpK⟩ := hs K hK
+  exact exists_realHull_subset_foldl_supersetRemovalStep s.polygons []
+    ⟨p, by simpa using hp, hpK⟩
 
 /-- **`wormAdding` preserves soundness — the mathematical crux of the development.**
 
@@ -229,34 +433,75 @@ theorem no_pinnedSmallCover_of_sound_of_empty {s : WorkingSet} (hs : s.Sound)
   rw [he] at hp
   simp at hp
 
+/-- Orientation-preserving isometries are closed under composition: determinants
+multiply and translations accumulate. -/
+private lemma isOrientationPreservingIsometry_comp {g₁ g₂ : ℝ² → ℝ²}
+    (h₁ : IsOrientationPreservingIsometry g₁) (h₂ : IsOrientationPreservingIsometry g₂) :
+    IsOrientationPreservingIsometry (g₁ ∘ g₂) := by
+  obtain ⟨e₁, v₁, hdet₁, rfl⟩ := h₁
+  obtain ⟨e₂, v₂, hdet₂, rfl⟩ := h₂
+  refine ⟨e₂.trans e₁, e₁ v₂ + v₁, ?_, ?_⟩
+  · rw [show (e₂.trans e₁).toLinearEquiv = e₁.toLinearEquiv * e₂.toLinearEquiv from rfl,
+      map_mul, hdet₁, hdet₂, one_mul]
+  · funext x
+    simp [add_assoc]
+
 /-- **Un-pinning.** Any convex set of area at most `areaThreshold` covering all
 worms can be moved by a direct isometry to a pinned small cover: it covers the
-L-shaped worm of `Moser.initialWorm_isWormHull`, and moving that copy onto the
-standard `InitialWorm` position preserves convexity, coverage, and volume.
-
-Leaf `sorry` of the spine. Needs `initialWorm_isWormHull`, volume-invariance of
-direct isometries, and closure of coverage under composing with an isometry (cf.
-`IsOrientationPreservingIsometry.exists_symm` in `CompactnessOutline`, currently
-`private`). -/
+L-shaped worm of `Moser.initialWorm_isWormHull`, and the placed copy `g '' K`
+of the cover over that worm is pinned, while remaining convex, covering (via
+composition with the inverse placement), and of the same volume (direct
+isometries preserve Lebesgue measure, and convex sets are null-measurable). -/
 theorem exists_pinnedSmallCover {K : Set ℝ²} (hconv : Convex ℝ K)
     (hcov : ∀ w ∈ Worms, CoversByIsometry K w)
     (hsmall : volume K ≤ ENNReal.ofReal (areaThreshold : ℝ)) :
     ∃ K' : Set ℝ², IsPinnedSmallCover K' := by
-  sorry
+  obtain ⟨w₀, hw₀, hhull⟩ := initialWorm_isWormHull
+  obtain ⟨g, hg, hsub⟩ := hcov w₀ hw₀
+  obtain ⟨g', hg', hleft, hright⟩ := hg.exists_symm
+  -- The placed copy of the cover over the L-shaped worm is convex ...
+  have hgK_convex : Convex ℝ (g '' K) := by
+    obtain ⟨e, v, -, heq⟩ := hg
+    rw [heq, show (fun x => e x + v) '' K = (fun y => v + y) '' (⇑e '' K) by
+      rw [Set.image_image]; simp [add_comm]]
+    exact (hconv.linear_image (e.toLinearEquiv : ℝ² →ₗ[ℝ] ℝ²)).translate v
+  -- ... has the same volume as the cover ...
+  have hvol : volume (g '' K) = volume K := by
+    rw [Set.image_eq_preimage_of_inverse hleft hright]
+    obtain ⟨e', v', -, heq'⟩ := hg'
+    have hmp : MeasurePreserving g' (volume : Measure ℝ²) volume := by
+      rw [heq']
+      exact (measurePreserving_add_right volume v').comp e'.measurePreserving
+    exact hmp.measure_preimage (hconv.nullMeasurableSet (μ := volume))
+  -- ... and still covers every worm, via the inverse placement.
+  have hcovers : ∀ w ∈ Worms, CoversByIsometry (g '' K) w := by
+    intro w hw
+    obtain ⟨h, hh, hwsub⟩ := hcov w hw
+    refine ⟨h ∘ g', isOrientationPreservingIsometry_comp hh hg', fun x hx => ?_⟩
+    obtain ⟨y, hy, rfl⟩ := hwsub hx
+    exact ⟨g y, Set.mem_image_of_mem g hy, by simp only [Function.comp_apply, hleft y]⟩
+  refine ⟨g '' K, hgK_convex, hcovers, ?_, hvol.le.trans hsmall⟩
+  rw [← hhull]
+  exact convexHull_min hsub hgK_convex
 
 /-- A volume bound valid for every *convex* cover of all worms is a lower bound on
 `moserCoverNumber`: the convex hull demanded by a placement cover is itself a
-convex cover of no larger volume.
-
-Leaf `sorry` of the spine. Routine: `le_sInf`, then for a placement cover `X` take
-`H = convexHull ℝ (⋃ s ∈ Worms, g s '' s) ⊆ X`; `H` covers each worm via the
-inverse placement (needs `IsOrientationPreservingIsometry.exists_symm`, currently
-`private` in `CompactnessOutline`). -/
+convex cover of no larger volume — it covers each worm via the inverse of that
+worm's placement (`IsOrientationPreservingIsometry.exists_symm`). -/
 theorem le_moserCoverNumber_of_forall_convex_cover {t : ℝ≥0∞}
     (h : ∀ K : Set ℝ², Convex ℝ K → (∀ w ∈ Worms, CoversByIsometry K w) →
       t ≤ volume K) :
     t ≤ moserCoverNumber := by
-  sorry
+  rw [moserCoverNumber, minimalCoverArea, minimalVolume]
+  refine le_sInf ?_
+  rintro v ⟨X, ⟨g, hgop, hsub⟩, rfl⟩
+  set H := convexHull ℝ (⋃ s ∈ Worms, g s '' s) with hH
+  have hcov : ∀ w ∈ Worms, CoversByIsometry H w := by
+    intro w hw
+    obtain ⟨g', hg'op, hleft, _⟩ := (hgop w hw).exists_symm
+    refine ⟨g', hg'op, fun x hx => ⟨g w x, ?_, hleft x⟩⟩
+    exact subset_convexHull ℝ _ (Set.mem_biUnion hw ⟨x, hx, rfl⟩)
+  exact le_trans (h H (convex_convexHull ℝ _) hcov) (measure_mono hsub)
 
 /-- **Termination of the search implies the record bound.** If some sound working
 set is empty — the certificate the computational search is meant to produce — then

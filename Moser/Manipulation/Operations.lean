@@ -18,10 +18,28 @@ namespace WorkingSet
 def bigSetRemoval (s : WorkingSet) : WorkingSet :=
   { polygons := s.polygons.filter (fun p => p.area ≤ areaThreshold) }
 
-/-- Operation 2: Remove polygons which are supersets of others -/
+/-- One step of `supersetRemoval`: adjoin the polygon `p` to the accumulator
+`kept` of retained polygons. If some retained polygon is contained in `p`, then
+`p` is redundant and is dropped; otherwise `p` is retained, and any previously
+retained polygons containing `p` (now redundant) are dropped. -/
+def supersetRemovalStep (kept : List (ConvexPolygon ℚ)) (p : ConvexPolygon ℚ) :
+    List (ConvexPolygon ℚ) :=
+  if kept.any fun q => q.isSubsetOf p then kept
+  else kept.filter (fun q => !p.isSubsetOf q) ++ [p]
+
+/-- Operation 2: Remove polygons which are supersets of others, processed
+sequentially by `supersetRemovalStep`.
+
+The sequential form (rather than the symmetric filter "drop `p` whenever some
+other `q ⊆ p` is in the list") matters for soundness:
+`ConvexPolygon.isSubsetOf` is not antisymmetric — two distinct polygons, e.g.
+with cyclically rotated vertex lists, can each contain the other — and the
+symmetric filter would delete *both* members of such a pair, potentially
+removing the last witness required by the soundness invariant
+(`Moser.WorkingSet.Sound.supersetRemoval` in `Moser.LowerBound`). The
+sequential form always keeps a representative. -/
 def supersetRemoval (s : WorkingSet) : WorkingSet :=
-  { polygons := s.polygons.filter fun p =>
-      ¬s.polygons.any fun q => q ≠ p && q.isSubsetOf p }
+  { polygons := s.polygons.foldl supersetRemovalStep [] }
 
 /--
 given a convex polygon `p` and a worm hull `w` and a positive rational `ε`,
@@ -67,7 +85,8 @@ def InitialWorkingSet : WorkingSet := {
 
 -- #eval wormReplacement InitialWorm RightTriangleOneThirdWorm (1 / 3) (by grind)
 
--- #eval (InitialWorkingSet.addWormAndCleanup RightTriangleOneThirdWorm (.divInt 1 10) (by rfl)).polygons.length
+-- #eval (InitialWorkingSet.addWormAndCleanup RightTriangleOneThirdWorm
+--   (.divInt 1 10) (by rfl)).polygons.length
 
 end WorkingSet
 --
