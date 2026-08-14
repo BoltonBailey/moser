@@ -345,6 +345,225 @@ theorem realHull_subset_realHull {p q : ConvexPolygon ℚ}
     rw [ConvexPolygon.vertex_list]
     exact List.mem_map.mpr ⟨i, List.mem_finRange i, rfl⟩)
 
+/-! ### Volume of a triangle
+
+Toward the area bridge `volume_realHull`: the Lebesgue volume of the convex
+hull of a triangle is half the absolute cross product of its edge vectors.
+Proved without integration: the triangle is the affine image of the standard
+simplex, and the standard simplex is half of the unit square — the square is
+the union of the simplex and its point reflection, overlapping in a null
+diagonal. -/
+
+/-- The standard `2`-simplex `{x | 0 ≤ x₀, 0 ≤ x₁, x₀ + x₁ ≤ 1}`. -/
+private def stdSimplex2 : Set ℝ² := {x | 0 ≤ x 0 ∧ 0 ≤ x 1 ∧ x 0 + x 1 ≤ 1}
+
+/-- Coordinate evaluation on the real plane is measurable. -/
+private lemma measurable_coord (i : Fin 2) : Measurable fun x : ℝ² => x i :=
+  (measurable_pi_apply i).comp (MeasurableEquiv.toLp 2 (Fin 2 → ℝ)).symm.measurable
+
+private lemma measurableSet_stdSimplex2 : MeasurableSet stdSimplex2 := by
+  unfold stdSimplex2
+  rw [Set.setOf_and, Set.setOf_and]
+  exact (measurableSet_le measurable_const (measurable_coord 0)).inter
+    ((measurableSet_le measurable_const (measurable_coord 1)).inter
+      (measurableSet_le ((measurable_coord 0).add (measurable_coord 1)) measurable_const))
+
+private lemma convex_stdSimplex2 : Convex ℝ stdSimplex2 := by
+  rintro x ⟨hx0, hx1, hxs⟩ y ⟨hy0, hy1, hys⟩ s t hs ht hst
+  refine ⟨?_, ?_, ?_⟩ <;> simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+  · nlinarith [mul_nonneg hs hx0, mul_nonneg ht hy0]
+  · nlinarith [mul_nonneg hs hx1, mul_nonneg ht hy1]
+  · nlinarith [mul_le_mul_of_nonneg_left hxs hs, mul_le_mul_of_nonneg_left hys ht]
+
+/-- The unit square in the real plane has volume `1`, by transfer to the
+product Lebesgue measure. -/
+private lemma volume_unitSquare2 :
+    volume {x : ℝ² | ∀ i, x i ∈ Set.Icc (0 : ℝ) 1} = 1 := by
+  have h : {x : ℝ² | ∀ i, x i ∈ Set.Icc (0 : ℝ) 1}
+      = WithLp.ofLp ⁻¹' (Set.univ.pi fun _ : Fin 2 => Set.Icc (0 : ℝ) 1) := by
+    ext x
+    simp only [Set.mem_setOf_eq, Set.mem_preimage, Set.pi_univ_Icc, Set.mem_Icc, Pi.le_def,
+      Fin.forall_fin_two]
+    tauto
+  rw [h, (PiLp.volume_preserving_ofLp (Fin 2)).measure_preimage
+    (MeasurableSet.univ_pi fun _ => measurableSet_Icc).nullMeasurableSet,
+    volume_pi_pi]
+  simp [Real.volume_Icc]
+
+/-- A point reflection of the plane preserves volume. -/
+private lemma volume_reflect (e : ℝ²) {S : Set ℝ²} (hS : NullMeasurableSet S volume) :
+    volume ((fun x => e - x) '' S) = volume S := by
+  have hinv : ∀ x : ℝ², e - (e - x) = x := fun x => sub_sub_cancel e x
+  rw [Set.image_eq_preimage_of_inverse hinv hinv]
+  have hmp : MeasurePreserving (fun x : ℝ² => e - x) volume volume := by
+    have hfun : (fun x : ℝ² => e - x) = (fun y : ℝ² => e + y) ∘ (fun x : ℝ² => -x) := by
+      funext x
+      simp [sub_eq_add_neg]
+    rw [hfun]
+    exact (measurePreserving_add_left volume e).comp (Measure.measurePreserving_neg volume)
+  exact hmp.measure_preimage hS
+
+/-- The diagonal line `x₀ + x₁ = 1` is a null set: it is a proper affine
+subspace of the plane. -/
+private lemma volume_diagLine2 : volume {x : ℝ² | x 0 + x 1 = 1} = 0 := by
+  classical
+  set f : ℝ² →ₗ[ℝ] ℝ := PiLp.projₗ (𝕜 := ℝ) 2 (fun _ : Fin 2 => ℝ) (0 : Fin 2)
+    + PiLp.projₗ (𝕜 := ℝ) 2 (fun _ : Fin 2 => ℝ) (1 : Fin 2) with hf
+  set A : AffineSubspace ℝ ℝ² :=
+    AffineSubspace.mk' (WithLp.toLp 2 ![1, 0]) (LinearMap.ker f) with hA
+  have hset : {x : ℝ² | x 0 + x 1 = 1} = (A : Set ℝ²) := by
+    ext x
+    simp only [Set.mem_setOf_eq, hA, SetLike.mem_coe, AffineSubspace.mem_mk',
+      vsub_eq_sub, LinearMap.mem_ker, hf, LinearMap.add_apply, PiLp.projₗ_apply,
+      PiLp.sub_apply, Matrix.cons_val_zero, Matrix.cons_val_one]
+    constructor <;> intro h <;> linarith
+  have hne : A ≠ ⊤ := by
+    intro htop
+    have h0 : (0 : ℝ²) ∈ {x : ℝ² | x 0 + x 1 = 1} := by
+      rw [hset, htop]
+      simp
+    norm_num [PiLp.zero_apply] at h0
+  rw [hset]
+  exact Measure.addHaar_affineSubspace volume A hne
+
+/-- **The standard simplex has volume `1/2`**: it is half of the unit square,
+the other half being its point reflection through the square's center, and the
+two halves overlap in a null diagonal. -/
+private lemma volume_stdSimplex2 : volume stdSimplex2 = 2⁻¹ := by
+  classical
+  set e : ℝ² := WithLp.toLp 2 ![1, 1] with he
+  set S' : Set ℝ² := (fun x => e - x) '' stdSimplex2 with hS'
+  have hS'eq : S' = {x : ℝ² | x 0 ≤ 1 ∧ x 1 ≤ 1 ∧ 1 ≤ x 0 + x 1} := by
+    ext x
+    simp only [hS', Set.mem_image, stdSimplex2, Set.mem_setOf_eq]
+    constructor
+    · rintro ⟨y, ⟨hy0, hy1, hys⟩, rfl⟩
+      refine ⟨?_, ?_, ?_⟩ <;>
+        simp only [he, PiLp.sub_apply, Matrix.cons_val_zero, Matrix.cons_val_one] <;>
+        linarith
+    · rintro ⟨h0, h1, hsum⟩
+      refine ⟨e - x, ⟨?_, ?_, ?_⟩, sub_sub_cancel e x⟩ <;>
+        simp only [he, PiLp.sub_apply, Matrix.cons_val_zero, Matrix.cons_val_one] <;>
+        linarith
+  have hmeasS' : MeasurableSet S' := by
+    rw [hS'eq, Set.setOf_and, Set.setOf_and]
+    exact (measurableSet_le (measurable_coord 0) measurable_const).inter
+      ((measurableSet_le (measurable_coord 1) measurable_const).inter
+        (measurableSet_le measurable_const ((measurable_coord 0).add (measurable_coord 1))))
+  have hunion : stdSimplex2 ∪ S' = {x : ℝ² | ∀ i, x i ∈ Set.Icc (0 : ℝ) 1} := by
+    rw [hS'eq]
+    ext x
+    simp only [Set.mem_union, stdSimplex2, Set.mem_setOf_eq, Set.mem_Icc, Fin.forall_fin_two]
+    constructor
+    · rintro (⟨h0, h1, hs⟩ | ⟨h0, h1, hs⟩) <;>
+        exact ⟨⟨by linarith, by linarith⟩, by linarith, by linarith⟩
+    · rintro ⟨⟨h00, h01⟩, h10, h11⟩
+      rcases le_total (x 0 + x 1) 1 with h | h
+      · exact Or.inl ⟨h00, h10, h⟩
+      · exact Or.inr ⟨h01, h11, h⟩
+  have hinter : stdSimplex2 ∩ S' ⊆ {x : ℝ² | x 0 + x 1 = 1} := by
+    rw [hS'eq]
+    rintro x ⟨⟨-, -, hs1⟩, -, -, hs2⟩
+    exact le_antisymm hs1 hs2
+  have hvolS' : volume S' = volume stdSimplex2 :=
+    volume_reflect e measurableSet_stdSimplex2.nullMeasurableSet
+  have hkey := measure_union_add_inter (μ := volume) stdSimplex2 hmeasS'
+  rw [hunion, volume_unitSquare2, measure_mono_null hinter volume_diagLine2, add_zero,
+    hvolS'] at hkey
+  have h2 : (2 : ℝ≥0∞) * volume stdSimplex2 = 1 := by
+    rw [two_mul]
+    exact hkey.symm
+  rw [← one_mul (volume stdSimplex2),
+    ← ENNReal.inv_mul_cancel two_ne_zero ENNReal.ofNat_ne_top, mul_assoc, h2, mul_one]
+
+/-- The linear shear sending the standard basis to the vectors `u`, `v`. -/
+private noncomputable def shearMap (u v : ℝ²) : ℝ² →ₗ[ℝ] ℝ² :=
+  (PiLp.projₗ (𝕜 := ℝ) 2 (fun _ : Fin 2 => ℝ) (0 : Fin 2)).smulRight u
+    + (PiLp.projₗ (𝕜 := ℝ) 2 (fun _ : Fin 2 => ℝ) (1 : Fin 2)).smulRight v
+
+private lemma det_shearMap (u v : ℝ²) : LinearMap.det (shearMap u v) = rcross u v := by
+  classical
+  rw [← LinearMap.det_toMatrix (PiLp.basisFun 2 ℝ (Fin 2)), Matrix.det_fin_two]
+  have e0 : shearMap u v (PiLp.basisFun 2 ℝ (Fin 2) 0) = u := by
+    simp [shearMap, PiLp.basisFun_apply]
+  have e1 : shearMap u v (PiLp.basisFun 2 ℝ (Fin 2) 1) = v := by
+    simp [shearMap, PiLp.basisFun_apply]
+  simp only [LinearMap.toMatrix_apply, PiLp.basisFun_repr, e0, e1, rcross]
+  ring
+
+/-- A triangle is the affine image of the standard simplex. -/
+private lemma convexHull_triangle_eq_image (a b c : ℝ²) :
+    convexHull ℝ ({a, b, c} : Set ℝ²)
+      = (fun x : ℝ² => a + (x 0 • (b - a) + x 1 • (c - a))) '' stdSimplex2 := by
+  have hcoe : ⇑(shearMap (b - a) (c - a)) = fun x : ℝ² => x 0 • (b - a) + x 1 • (c - a) := by
+    funext x
+    simp [shearMap]
+  apply Set.Subset.antisymm
+  · refine convexHull_min ?_ ?_
+    · rintro x hx
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
+      rcases hx with rfl | rfl | rfl
+      · refine ⟨0, ⟨?_, ?_, ?_⟩, ?_⟩ <;> simp [PiLp.zero_apply]
+      · refine ⟨WithLp.toLp 2 ![1, 0], ⟨?_, ?_, ?_⟩, ?_⟩ <;> simp
+      · refine ⟨WithLp.toLp 2 ![0, 1], ⟨?_, ?_, ?_⟩, ?_⟩ <;> simp
+    · have himg : (fun x : ℝ² => a + (x 0 • (b - a) + x 1 • (c - a))) '' stdSimplex2
+          = (fun y => a + y) '' (⇑(shearMap (b - a) (c - a)) '' stdSimplex2) := by
+        rw [Set.image_image, hcoe]
+      rw [himg]
+      exact (convex_stdSimplex2.linear_image (shearMap (b - a) (c - a))).translate a
+  · rintro x ⟨y, ⟨hy0, hy1, hys⟩, rfl⟩
+    have key := (convex_convexHull ℝ ({a, b, c} : Set ℝ²)).sum_mem
+      (t := (Finset.univ : Finset (Fin 3)))
+      (w := ![1 - y 0 - y 1, y 0, y 1])
+      (z := ![a, b, c])
+      (fun i _ => by
+        fin_cases i
+        · exact (by linarith : (0 : ℝ) ≤ 1 - y 0 - y 1)
+        · exact hy0
+        · exact hy1)
+      (by
+        rw [Fin.sum_univ_three]
+        simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+          Matrix.cons_val_two, Matrix.tail_cons]
+        ring)
+      (fun i _ => subset_convexHull ℝ _ (by fin_cases i <;> simp))
+    have hsum : (∑ i : Fin 3, (![1 - y 0 - y 1, y 0, y 1] : Fin 3 → ℝ) i • ![a, b, c] i)
+        = a + (y 0 • (b - a) + y 1 • (c - a)) := by
+      rw [Fin.sum_univ_three]
+      simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+        Matrix.cons_val_two, Matrix.tail_cons]
+      module
+    rwa [hsum] at key
+
+/-- **Volume of a triangle**: half the absolute cross product of its edge
+vectors. -/
+private lemma volume_triangle (a b c : ℝ²) :
+    volume (convexHull ℝ ({a, b, c} : Set ℝ²))
+      = ENNReal.ofReal (|rcross (b - a) (c - a)| / 2) := by
+  classical
+  have hcompact : IsCompact (convexHull ℝ ({a, b, c} : Set ℝ²)) :=
+    Set.Finite.isCompact_convexHull ℝ (((Set.finite_singleton c).insert b).insert a)
+  have hmeas : MeasurableSet (convexHull ℝ ({a, b, c} : Set ℝ²)) :=
+    hcompact.isClosed.measurableSet
+  have hF : (fun x : ℝ² => a + (x 0 • (b - a) + x 1 • (c - a)))
+      = (fun y => a + y) ∘ ⇑(shearMap (b - a) (c - a)) := by
+    funext x
+    simp [shearMap]
+  calc volume (convexHull ℝ ({a, b, c} : Set ℝ²))
+      = volume ((fun y => a + y) ⁻¹' convexHull ℝ ({a, b, c} : Set ℝ²)) :=
+        ((measurePreserving_add_left volume a).measure_preimage
+          hmeas.nullMeasurableSet).symm
+    _ = volume (⇑(shearMap (b - a) (c - a)) '' stdSimplex2) := by
+        rw [convexHull_triangle_eq_image a b c, hF, Set.image_comp,
+          Set.preimage_image_eq _ (add_right_injective a)]
+    _ = ENNReal.ofReal |LinearMap.det (shearMap (b - a) (c - a))| * volume stdSimplex2 := by
+        rw [Measure.addHaar_image_linearMap]
+    _ = ENNReal.ofReal (|rcross (b - a) (c - a)| / 2) := by
+        rw [det_shearMap, volume_stdSimplex2, div_eq_mul_inv,
+          ENNReal.ofReal_mul (abs_nonneg _),
+          ENNReal.ofReal_inv_of_pos (by norm_num : (0 : ℝ) < 2)]
+        norm_num
+
 /-- `poly` is the convex hull of a genuine worm: some `1`-Lipschitz curve
 `[0,1] → ℝ²` whose range has convex hull exactly `poly.realHull`. This is the
 hypothesis under which adjoining `poly` to the working set (`wormAdding`) is
