@@ -1,7 +1,16 @@
-import Mathlib
-import Moser.Constants
-import Moser.Manipulation.Operations
-import Moser.Real.CompactnessOutline
+module
+
+public import Mathlib
+public import Moser.Constants
+public import Moser.Manipulation.Operations
+public import Moser.Real.CompactnessOutline
+public meta import Mathlib
+public meta import Moser.Constants
+public meta import Moser.Geometry.Polygon
+public meta import Moser.Manipulation.Invariants
+public meta import Moser.Manipulation.Operations
+
+@[expose] public section
 
 /-!
 # The lower-bound spine
@@ -1564,3 +1573,5 @@ theorem areaThreshold_le_moserCoverNumber :
   sorry
 
 end Moser
+
+end

@@ -1,4 +1,8 @@
-import Mathlib
+module
+
+public import Mathlib
+
+@[expose] public section
 
 /-!
 # Rational Utility
@@ -158,3 +162,5 @@ lemma findRationalWithSquareBetween_spec (lower upper : ℚ)
       have := mul_self_le_mul_self (by positivity : (0:ℝ) ≤ (m : ℝ)) hm_le
       nlinarith [Real.mul_self_sqrt h_upper_nn]
     exact_mod_cast hkey
+
+end

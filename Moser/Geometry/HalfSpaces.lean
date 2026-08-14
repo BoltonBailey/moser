@@ -1,5 +1,9 @@
-import Moser.Geometry.RationalPoint
-import Moser.Geometry.RationalUtility
+module
+
+public import Moser.Geometry.RationalPoint
+public import Moser.Geometry.RationalUtility
+
+@[expose] public section
 
 /-!
 # Half Spaces and Lines
@@ -168,3 +172,5 @@ def ClosedHalfSpace.moveOutward (h : ClosedHalfSpace ℚ) (dist tolerance : ℚ)
   let scaledDirection : Point ℚ := ![h.normal 0 * scaleFactor, h.normal 1 * scaleFactor]
   { basepoint := h.basepoint - scaledDirection, normal := h.normal,
     normal_pos := h.normal_pos }
+
+end

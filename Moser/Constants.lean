@@ -1,5 +1,12 @@
-import Mathlib
-import Moser.Geometry.PolygonArea
+module
+
+public import Mathlib
+public import Moser.Geometry.PolygonArea
+public meta import Mathlib
+public meta import Moser.Geometry.Polygon
+public meta import Moser.Geometry.PolygonArea
+
+@[expose] public section
 
 /-!
 # Constants for Moser's Worm Problem
@@ -156,3 +163,5 @@ theorem area_hull_initialWorm_insert_gt_areaThreshold
   sorry
 
 end Moser
+
+end

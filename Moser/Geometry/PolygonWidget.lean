@@ -1,7 +1,12 @@
-import Moser.Geometry.Polygon
-import ProofWidgets.Data.Svg
-import ProofWidgets.Component.HtmlDisplay
-import Batteries.Data.Rat.Float
+module
+
+public import Moser.Geometry.Polygon
+public meta import Moser.Geometry.Polygon
+public meta import ProofWidgets.Data.Svg
+public meta import ProofWidgets.Component.HtmlDisplay
+public meta import Batteries.Data.Rat.Float
+
+@[expose] public section
 
 /-!
 # Visualising convex polygons
@@ -30,11 +35,11 @@ namespace ConvexPolygon
 open ProofWidgets ProofWidgets.Svg
 
 /-- Convert a rational planar point to a `(Float × Float)` pair. -/
-private def vertexToFloat (p : Point ℚ) : Float × Float := (p 0, p 1)
+private meta def vertexToFloat (p : Point ℚ) : Float × Float := (p 0, p 1)
 
 /-- A small palette of distinct stroke colours, cycled through when drawing
 several polygons at once. Values are RGB components in `[0,1]`. -/
-private def palette : Array Svg.Color := #[
+private meta def palette : Array Svg.Color := #[
   (0.85, 0.10, 0.10),   -- red
   (0.10, 0.35, 0.85),   -- blue
   (0.10, 0.65, 0.20),   -- green
@@ -45,7 +50,7 @@ private def palette : Array Svg.Color := #[
 
 /-- Bounding box `(xmin, ymin, xmax, ymax)` of a (non-empty) list of float
 points. Returns the unit box `(0,0,1,1)` for the empty list. -/
-private def boundingBox (pts : List (Float × Float)) : Float × Float × Float × Float :=
+private meta def boundingBox (pts : List (Float × Float)) : Float × Float × Float × Float :=
   match pts with
   | [] => (0.0, 0.0, 1.0, 1.0)
   | (x₀, y₀) :: rest =>
@@ -57,7 +62,7 @@ private def boundingBox (pts : List (Float × Float)) : Float × Float × Float 
 
 /-- Build a `Svg.Frame` of pixel width `pxWidth` that snugly fits the given
 bounding box, leaving a 10% margin on all sides and preserving aspect ratio. -/
-private def frameForBox (pxWidth : Nat) :
+private meta def frameForBox (pxWidth : Nat) :
     Float × Float × Float × Float → Svg.Frame
   | (xmin, ymin, xmax, ymax) =>
     let w := xmax - xmin
@@ -79,7 +84,7 @@ private def frameForBox (pxWidth : Nat) :
 
 /-- The SVG elements (filled-and-outlined polygon plus vertex dots) for a single
 polygon drawn in colour `c` within frame `f`. -/
-private def elementsFor (f : Svg.Frame) (c : Svg.Color) (verts : List (Point ℚ)) :
+private meta def elementsFor (f : Svg.Frame) (c : Svg.Color) (verts : List (Point ℚ)) :
     Array (Svg.Element f) :=
   let pts : Array (Svg.Point f) :=
     (verts.map fun v => let (x, y) := vertexToFloat v; (Svg.Point.abs x y)).toArray
@@ -97,7 +102,7 @@ cycled from `palette`.
 This is the main tool for visualising the *sets* of polygons produced by the
 constructions in this development.
 -/
-def listToHtml (polys : List (ConvexPolygon ℚ)) (pxWidth : Nat := 500) : ProofWidgets.Html :=
+meta def listToHtml (polys : List (ConvexPolygon ℚ)) (pxWidth : Nat := 500) : ProofWidgets.Html :=
   let vertLists : List (List (Point ℚ)) := polys.map ConvexPolygon.vertex_list
   let allPts : List (Float × Float) := vertLists.flatten.map vertexToFloat
   let f : Svg.Frame := frameForBox pxWidth (boundingBox allPts)
@@ -109,7 +114,9 @@ def listToHtml (polys : List (ConvexPolygon ℚ)) (pxWidth : Nat := 500) : Proof
   (Svg.toHtml { elements := elements : Svg f })
 
 /-- Render a single convex polygon as an SVG picture. -/
-def toHtml (poly : ConvexPolygon ℚ) (pxWidth : Nat := 400) : ProofWidgets.Html :=
+meta def toHtml (poly : ConvexPolygon ℚ) (pxWidth : Nat := 400) : ProofWidgets.Html :=
   listToHtml [poly] pxWidth
 
 end ConvexPolygon
+
+end

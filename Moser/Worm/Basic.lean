@@ -1,5 +1,9 @@
-import Mathlib
-import Moser.Geometry.Polygon
+module
+
+public import Mathlib
+public import Moser.Geometry.Polygon
+
+@[expose] public section
 
 /-!
 # Worms
@@ -105,3 +109,5 @@ end UnitWorm
 def Worm.toUnitWorm (w : Worm) (epsilon : ℚ) : UnitWorm := sorry
 
 end Moser
+
+end

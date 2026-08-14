@@ -1,4 +1,8 @@
-import Mathlib
+module
+
+public import Mathlib
+
+@[expose] public section
 
 /-!
 # Grid machinery for the Moser worm finite `ε`-net
@@ -353,3 +357,5 @@ lemma interp_lipschitz {k : ℕ} (hk0 : 0 < k) (p : ℕ → ℝ²)
   · rw [abs_of_nonneg (by linarith), norm_sub_rev]; exact key y x h
 
 end Moser.CompactnessOutline
+
+end

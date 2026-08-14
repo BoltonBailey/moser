@@ -1,5 +1,9 @@
-import Mathlib
-import Moser.Geometry.Polygon
+module
+
+public import Mathlib
+public import Moser.Geometry.Polygon
+
+@[expose] public section
 
 /-!
 # Polygon Area Computation
@@ -29,3 +33,5 @@ def area (poly : ConvexPolygon K) : K :=
 
 
 end ConvexPolygon
+
+end

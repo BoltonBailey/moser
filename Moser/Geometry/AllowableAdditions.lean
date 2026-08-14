@@ -1,6 +1,10 @@
-import Moser.Geometry.HalfSpaces
-import Moser.Geometry.Polygon
-import Moser.Geometry.PolygonArea
+module
+
+public import Moser.Geometry.HalfSpaces
+public import Moser.Geometry.Polygon
+public import Moser.Geometry.PolygonArea
+
+@[expose] public section
 
 /-!
 # Allowable Additions
@@ -239,3 +243,5 @@ lemma threshold_violated_outside_growth_intersection
   sorry
 
 end ConvexPolygon
+
+end

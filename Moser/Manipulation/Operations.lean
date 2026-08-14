@@ -1,7 +1,11 @@
-import Mathlib
-import Moser.Manipulation.Invariants
-import Moser.Worm.Basic
-import Moser.DirectIsometry.Discretization
+module
+
+public import Mathlib
+public import Moser.Manipulation.Invariants
+public import Moser.Worm.Basic
+public import Moser.DirectIsometry.Discretization
+
+@[expose] public section
 
 /-!
 # Moser Set Operations
@@ -91,3 +95,5 @@ def InitialWorkingSet : WorkingSet := {
 end WorkingSet
 --
 end Moser
+
+end

@@ -1,6 +1,10 @@
-import Mathlib
-import Moser.Constants
-import Moser.DirectIsometry.Basic
+module
+
+public import Mathlib
+public import Moser.Constants
+public import Moser.DirectIsometry.Basic
+
+@[expose] public section
 
 /-!
 # Isometry Discretization
@@ -139,3 +143,5 @@ def defaultDiscretization : List (DirectIsometry ℚ) :=
 -- #eval (defaultDiscretization).length -- about 750k
 
 end Moser
+
+end

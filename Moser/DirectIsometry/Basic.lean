@@ -1,5 +1,9 @@
-import Mathlib
-import Moser.Geometry.Polygon
+module
+
+public import Mathlib
+public import Moser.Geometry.Polygon
+
+@[expose] public section
 
 /-!
 # Planar Isometries
@@ -144,3 +148,5 @@ def compose (iso1 iso2 : DirectIsometry K) : DirectIsometry K :=
 end DirectIsometry
 
 end Moser
+
+end

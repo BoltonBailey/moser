@@ -1,5 +1,9 @@
-import Mathlib
-import Moser.Real.GridEpsilonNet
+module
+
+public import Mathlib
+public import Moser.Real.GridEpsilonNet
+
+@[expose] public section
 
 /-!
 # Compactness outline for the Moser worm problem
@@ -449,3 +453,5 @@ theorem approxAlgorithm (x : ℝ) (hx : 0 < x) :
   sorry
 
 end Moser.CompactnessOutline
+
+end

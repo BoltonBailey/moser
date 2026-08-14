@@ -1,4 +1,8 @@
-import Moser.Geometry.HalfSpaces
+module
+
+public import Moser.Geometry.HalfSpaces
+
+@[expose] public section
 
 /-!
 # Convex Polygons
@@ -854,3 +858,5 @@ def shrink (poly : ConvexPolygon ℚ) (dist : ℚ) (tolerance : ℚ)
     (ConvexPolygon.ofHalfSpaces movedHalfSpaces)
 
 end ConvexPolygon
+
+end

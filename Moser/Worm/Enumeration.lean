@@ -1,6 +1,10 @@
-import Mathlib
-import Moser.Worm.Basic
-import Moser.DirectIsometry.Discretization
+module
+
+public import Mathlib
+public import Moser.Worm.Basic
+public import Moser.DirectIsometry.Discretization
+
+@[expose] public section
 
 /-!
 # Worm Enumeration
@@ -76,3 +80,5 @@ open Rat
 -- #eval enumeratePolygons 2
 
 end Moser
+
+end

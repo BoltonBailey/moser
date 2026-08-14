@@ -1,6 +1,10 @@
-import Mathlib
-import Moser.Geometry.Polygon
-import Moser.DirectIsometry.Basic
+module
+
+public import Mathlib
+public import Moser.Geometry.Polygon
+public import Moser.DirectIsometry.Basic
+
+@[expose] public section
 
 /-!
 # Containment of a polygon under rigid motions (STUB)
@@ -48,3 +52,5 @@ theorem containsCopyOf_iff (container worm : ConvexPolygon ℚ) :
   sorry
 
 end ConvexPolygon
+
+end

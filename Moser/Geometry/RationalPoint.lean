@@ -1,4 +1,8 @@
-import Mathlib
+module
+
+public import Mathlib
+
+@[expose] public section
 
 /-!
 # Planar Points
@@ -71,3 +75,5 @@ lemma lengthSq_pos_of_ne (v : Point K) (hv : v ≠ 0) : 0 < lengthSq v := by
 end Ordered
 
 end Point
+
+end

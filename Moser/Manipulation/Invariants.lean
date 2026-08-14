@@ -1,6 +1,10 @@
-import Mathlib
-import Moser.Constants
-import Moser.Geometry.PolygonArea
+module
+
+public import Mathlib
+public import Moser.Constants
+public import Moser.Geometry.PolygonArea
+
+@[expose] public section
 
 
 /-!
@@ -63,3 +67,5 @@ def size (s : WorkingSet) : ℕ :=
 end WorkingSet
 
 end Moser
+
+end
