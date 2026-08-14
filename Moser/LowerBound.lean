@@ -78,14 +78,272 @@ theorem volume_realHull (poly : ConvexPolygon ℚ) :
     volume poly.realHull = ENNReal.ofReal (poly.area : ℝ) := by
   sorry
 
-/-- **Containment bridge.** The Boolean vertex-containment test `isSubsetOf`
-implies containment of the real regions.
+/-! ### Soundness of the half-space test with respect to `realHull`
 
-Leaf `sorry` of the spine. Requires soundness of `ConvexPolygon.contains`
-(via `toHalfSpaces`) with respect to `realHull` membership. -/
+`ConvexPolygon.contains` accepts `v` iff `v` is weakly to the left of every
+directed edge of the (counterclockwise) polygon. The lemmas below show any such
+point lies in the real convex hull of the vertices — the easy direction of
+polyhedral duality, via fan triangulation from vertex `0` with explicit
+barycentric coordinates on each triangle. -/
+
+/-- Cross product of two vectors of the real plane. -/
+private def rcross (u v : ℝ²) : ℝ := u 0 * v 1 - u 1 * v 0
+
+/-- Twice the signed area of a triangle is invariant under cyclic rotation of
+its vertices. -/
+private lemma rcross_cycle (a b c : ℝ²) :
+    rcross (b - a) (c - a) = rcross (c - b) (a - b) := by
+  simp only [rcross, PiLp.sub_apply]
+  ring
+
+/-- Reversing the base edge negates the side of the test point. -/
+private lemma rcross_flip (a b v : ℝ²) :
+    rcross (a - b) (v - b) = -rcross (b - a) (v - a) := by
+  simp only [rcross, PiLp.sub_apply]
+  ring
+
+/-- **Barycentric triangle membership**: a point weakly to the left of all three
+directed edges of a positively oriented triangle lies in the convex hull of its
+vertices. The barycentric weights are the subtriangle areas over the total
+area: nonnegative by the edge conditions, and reconstituting `v` by an
+algebraic identity. -/
+private lemma mem_convexHull_triangle {a b c v : ℝ²}
+    (hD : 0 < rcross (b - a) (c - a))
+    (h1 : 0 ≤ rcross (b - a) (v - a))
+    (h2 : 0 ≤ rcross (c - b) (v - b))
+    (h3 : 0 ≤ rcross (a - c) (v - c)) :
+    v ∈ convexHull ℝ ({a, b, c} : Set ℝ²) := by
+  have hD' : rcross (b - a) (c - a) ≠ 0 := ne_of_gt hD
+  have hsum3 : rcross (c - b) (v - b) + rcross (a - c) (v - c) + rcross (b - a) (v - a)
+      = rcross (b - a) (c - a) := by
+    simp only [rcross, PiLp.sub_apply]
+    ring
+  have key := (convex_convexHull ℝ ({a, b, c} : Set ℝ²)).sum_mem
+    (t := (Finset.univ : Finset (Fin 3)))
+    (w := fun i => ![rcross (c - b) (v - b), rcross (a - c) (v - c),
+      rcross (b - a) (v - a)] i / rcross (b - a) (c - a))
+    (z := ![a, b, c])
+    (fun i _ => by
+      refine div_nonneg ?_ hD.le
+      fin_cases i
+      · exact h2
+      · exact h3
+      · exact h1)
+    (by
+      rw [Fin.sum_univ_three]
+      simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+        Matrix.cons_val_two, Matrix.tail_cons]
+      rw [← add_div, ← add_div, hsum3, div_self hD'])
+    (fun i _ => subset_convexHull ℝ _ (by fin_cases i <;> simp))
+  have hv : (∑ i : Fin 3, (![rcross (c - b) (v - b), rcross (a - c) (v - c),
+      rcross (b - a) (v - a)] i / rcross (b - a) (c - a)) • (![a, b, c] i)) = v := by
+    rw [Fin.sum_univ_three]
+    simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+      Matrix.cons_val_two, Matrix.tail_cons]
+    ext j
+    have hmul : rcross (c - b) (v - b) * a j + rcross (a - c) (v - c) * b j
+        + rcross (b - a) (v - a) * c j = rcross (b - a) (c - a) * v j := by
+      fin_cases j <;>
+        · simp only [rcross, PiLp.sub_apply, Fin.zero_eta, Fin.mk_one]
+          ring
+    simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+    rw [div_mul_eq_mul_div, div_mul_eq_mul_div, div_mul_eq_mul_div,
+      ← add_div, ← add_div, hmul, mul_div_cancel_left₀ _ hD']
+  rwa [hv] at key
+
+/-- **Fan-induction hull membership**: a point weakly to the left of every
+directed edge of a vertex cycle `w 0, …, w (n-1)` whose fan triangles from
+`w 0` are positively oriented lies in the convex hull of the vertices. -/
+private lemma mem_convexHull_fan (w : ℕ → ℝ²) (v : ℝ²) : ∀ n, 3 ≤ n →
+    (∀ k, k + 1 < n → 0 ≤ rcross (w (k + 1) - w k) (v - w k)) →
+    0 ≤ rcross (w 0 - w (n - 1)) (v - w (n - 1)) →
+    (∀ k, 1 ≤ k → k + 2 ≤ n → 0 < rcross (w (k + 1) - w k) (w 0 - w k)) →
+    v ∈ convexHull ℝ (w '' Set.Iio n) := by
+  intro n
+  induction n with
+  | zero => intro h; exact absurd h (by omega)
+  | succ m ih =>
+    intro hn hedge hclose hfan
+    rcases eq_or_lt_of_le hn with heq | hlt
+    · -- base case `n = 3`: a single triangle
+      obtain rfl : m = 2 := by omega
+      have hD : 0 < rcross (w 1 - w 0) (w 2 - w 0) := by
+        have h := hfan 1 le_rfl (by norm_num)
+        rwa [← rcross_cycle (w 0) (w 1) (w 2)] at h
+      have hclose' : 0 ≤ rcross (w 0 - w 2) (v - w 2) := hclose
+      have hmem := mem_convexHull_triangle hD (hedge 0 (by norm_num))
+        (hedge 1 (by norm_num)) hclose'
+      refine convexHull_mono ?_ hmem
+      intro x hx
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
+      rcases hx with rfl | rfl | rfl
+      · exact ⟨0, Set.mem_Iio.mpr (by omega), rfl⟩
+      · exact ⟨1, Set.mem_Iio.mpr (by omega), rfl⟩
+      · exact ⟨2, Set.mem_Iio.mpr (by omega), rfl⟩
+    · -- inductive step `n = m + 1 ≥ 4`
+      have hm3 : 3 ≤ m := by omega
+      by_cases hcase : 0 ≤ rcross (w 0 - w (m - 1)) (v - w (m - 1))
+      · exact convexHull_mono (Set.image_mono (Set.Iio_subset_Iio (by omega)))
+          (ih hm3 (fun k hk => hedge k (by omega)) hcase
+            (fun k hk1 hk2 => hfan k hk1 (by omega)))
+      · push Not at hcase
+        have hm1 : m - 1 + 1 = m := by omega
+        have hD : 0 < rcross (w (m - 1) - w 0) (w m - w 0) := by
+          have h := hfan (m - 1) (by omega) (by omega)
+          rw [hm1] at h
+          rwa [← rcross_cycle (w 0) (w (m - 1)) (w m)] at h
+        have h1 : 0 ≤ rcross (w (m - 1) - w 0) (v - w 0) := by
+          have h := rcross_flip (w 0) (w (m - 1)) v
+          linarith
+        have h2 : 0 ≤ rcross (w m - w (m - 1)) (v - w (m - 1)) := by
+          have h := hedge (m - 1) (by omega)
+          rwa [hm1] at h
+        have h3 : 0 ≤ rcross (w 0 - w m) (v - w m) := hclose
+        have hmem := mem_convexHull_triangle hD h1 h2 h3
+        refine convexHull_mono ?_ hmem
+        intro x hx
+        simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
+        rcases hx with rfl | rfl | rfl
+        · exact ⟨0, Set.mem_Iio.mpr (by omega), rfl⟩
+        · exact ⟨m - 1, Set.mem_Iio.mpr (by omega), rfl⟩
+        · exact ⟨m, Set.mem_Iio.mpr (by omega), rfl⟩
+
+/-- The dot product against a `90°`-rotated vector is the cross product against
+the original. -/
+private lemma dotProduct_rotate90 (d x : Point ℚ) :
+    Point.dotProduct (Point.rotate90Counterclockwise d) x = Point.crossProduct d x := by
+  simp only [Point.dotProduct, Point.rotate90Counterclockwise, Point.crossProduct,
+    Matrix.cons_val_zero, Matrix.cons_val_one]
+  ring
+
+/-- Casting the rational cross product of differences to the real plane. -/
+private lemma rcross_toEuclidean (u u' x x' : Point ℚ) :
+    rcross (Point.toEuclidean u - Point.toEuclidean u')
+      (Point.toEuclidean x - Point.toEuclidean x')
+      = ((Point.crossProduct (u - u') (x - x') : ℚ) : ℝ) := by
+  simp only [rcross, Point.toEuclidean, PiLp.sub_apply,
+    Matrix.cons_val_zero, Matrix.cons_val_one,
+    Point.crossProduct, Pi.sub_apply]
+  push_cast
+  ring
+
+/-- **Soundness of the half-space test.** Any rational point accepted by
+`ConvexPolygon.contains` lies in the real convex hull of the polygon's
+vertices. -/
+theorem mem_realHull_of_contains {q : ConvexPolygon ℚ} {v : Point ℚ}
+    (h : q.contains v = true) : Point.toEuclidean v ∈ q.realHull := by
+  haveI := q.vertex_count_pos
+  have hn3 : 3 ≤ q.vertex_count := q.three_le_vertex_count
+  have hpos : 0 < q.vertex_count := by omega
+  -- extract the Boolean test into per-edge rational inequalities
+  obtain ⟨hs, hhs, hall⟩ : ∃ hs, q.toHalfSpaces = some hs ∧
+      hs.all (fun hsp => hsp.contains v) = true := by
+    unfold ConvexPolygon.contains at h
+    rcases htH : q.toHalfSpaces with _ | hs
+    · rw [htH] at h
+      exact absurd h (by simp)
+    · rw [htH] at h
+      exact ⟨hs, rfl, h⟩
+  rw [ConvexPolygon.toHalfSpaces, dif_neg (by omega)] at hhs
+  replace hhs := Option.some.inj hhs
+  have hedgeQ : ∀ i : Fin q.vertex_count,
+      0 ≤ Point.crossProduct (q.vertices (i + ⟨1, by omega⟩) - q.vertices i)
+        (v - q.vertices i) := by
+    intro i
+    have hcont := List.all_eq_true.mp hall _
+      (hhs ▸ List.mem_map.mpr ⟨i, List.mem_finRange i, rfl⟩)
+    simp only [ClosedHalfSpace.contains, Point.toWeaklyLeft, ge_iff_le,
+      decide_eq_true_eq] at hcont
+    rwa [dotProduct_rotate90] at hcont
+  -- the cyclic vertex sequence, indexed by `ℕ`
+  set wV : ℕ → Point ℚ := fun k => q.vertices ⟨k % q.vertex_count, Nat.mod_lt _ hpos⟩
+    with hwV
+  have hVk : ∀ (k : ℕ) (hk : k < q.vertex_count), wV k = q.vertices ⟨k, hk⟩ := by
+    intro k hk
+    simp only [hwV]
+    exact congrArg q.vertices (Fin.ext (Nat.mod_eq_of_lt hk))
+  have hedgeW : ∀ k, k < q.vertex_count →
+      0 ≤ Point.crossProduct (wV (k + 1) - wV k) (v - wV k) := by
+    intro k hk
+    have hQ := hedgeQ ⟨k, hk⟩
+    have h1 : wV (k + 1) = q.vertices (⟨k, hk⟩ + ⟨1, by omega⟩) := by
+      simp only [hwV]
+      exact congrArg q.vertices (Fin.ext (by rw [Fin.val_add]))
+    rw [h1, hVk k hk]
+    exact hQ
+  have hfanW : ∀ k, 1 ≤ k → k + 2 ≤ q.vertex_count →
+      0 < Point.crossProduct (wV (k + 1) - wV k) (wV 0 - wV k) := by
+    intro k hk1 hk2
+    have hccw := q.vertices_extremePoints ⟨k, by omega⟩ ⟨0, by omega⟩
+      (Fin.ne_of_val_ne (show (0 : ℕ) ≠ k by omega))
+      (by
+        refine Fin.ne_of_val_ne ?_
+        change (0 : ℕ) ≠ _
+        rw [Fin.val_add, Fin.val_one',
+          Nat.mod_eq_of_lt (show 1 < q.vertex_count by omega),
+          Nat.mod_eq_of_lt (show k + 1 < q.vertex_count by omega)]
+        omega)
+    simp only [Point.ccw, Point.isStrictlyLeftOf, decide_eq_true_eq] at hccw
+    have e1 : q.vertices (⟨k, by omega⟩ + 1) = wV (k + 1) := by
+      simp only [hwV]
+      refine congrArg q.vertices (Fin.ext ?_)
+      rw [Fin.val_add, Fin.val_one',
+        Nat.mod_eq_of_lt (show 1 < q.vertex_count by omega)]
+    have e2 : q.vertices ⟨k, by omega⟩ = wV k := (hVk k (by omega)).symm
+    have e3 : q.vertices ⟨0, by omega⟩ = wV 0 := (hVk 0 (by omega)).symm
+    rwa [e1, e2, e3] at hccw
+  -- transfer to the real plane
+  have hedgeR : ∀ k, k < q.vertex_count →
+      0 ≤ rcross (Point.toEuclidean (wV (k + 1)) - Point.toEuclidean (wV k))
+        (Point.toEuclidean v - Point.toEuclidean (wV k)) := by
+    intro k hk
+    rw [rcross_toEuclidean]
+    exact_mod_cast hedgeW k hk
+  have hfanR : ∀ k, 1 ≤ k → k + 2 ≤ q.vertex_count →
+      0 < rcross (Point.toEuclidean (wV (k + 1)) - Point.toEuclidean (wV k))
+        (Point.toEuclidean (wV 0) - Point.toEuclidean (wV k)) := by
+    intro k hk1 hk2
+    rw [rcross_toEuclidean]
+    exact_mod_cast hfanW k hk1 hk2
+  have hmem := mem_convexHull_fan (fun k => Point.toEuclidean (wV k))
+    (Point.toEuclidean v) q.vertex_count hn3
+    (fun k hk => hedgeR k (by omega))
+    (by
+      have h := hedgeR (q.vertex_count - 1) (by omega)
+      have hN1 : q.vertex_count - 1 + 1 = q.vertex_count := by omega
+      rw [hN1] at h
+      have hwN : wV q.vertex_count = wV 0 := by
+        simp only [hwV]
+        exact congrArg q.vertices (Fin.ext
+          (show q.vertex_count % q.vertex_count = 0 % q.vertex_count by simp))
+      rwa [hwN] at h)
+    hfanR
+  have himg : (fun k => Point.toEuclidean (wV k)) '' Set.Iio q.vertex_count
+      = Set.range (fun i => Point.toEuclidean (q.vertices i)) := by
+    ext x
+    constructor
+    · rintro ⟨k, hk, rfl⟩
+      exact ⟨⟨k % q.vertex_count, Nat.mod_lt _ hpos⟩, rfl⟩
+    · rintro ⟨i, rfl⟩
+      exact ⟨i.val, i.isLt, congrArg (fun j => Point.toEuclidean (q.vertices j))
+        (Fin.ext (Nat.mod_eq_of_lt i.isLt))⟩
+  rw [ConvexPolygon.realHull, ← himg]
+  exact hmem
+
+/-- **Containment bridge.** The Boolean vertex-containment test `isSubsetOf`
+implies containment of the real regions: each vertex of `p` passes `q`'s
+half-space test, hence lies in `q.realHull` (`mem_realHull_of_contains`), and
+`p.realHull` is the hull of those vertices. -/
 theorem realHull_subset_realHull {p q : ConvexPolygon ℚ}
     (h : p.isSubsetOf q = true) : p.realHull ⊆ q.realHull := by
-  sorry
+  rw [ConvexPolygon.realHull]
+  refine convexHull_min ?_ q.convex_realHull
+  rintro x ⟨i, rfl⟩
+  refine mem_realHull_of_contains ?_
+  rw [ConvexPolygon.isSubsetOf, List.all_eq_true] at h
+  exact h _ (by
+    rw [ConvexPolygon.vertex_list]
+    exact List.mem_map.mpr ⟨i, List.mem_finRange i, rfl⟩)
 
 /-- `poly` is the convex hull of a genuine worm: some `1`-Lipschitz curve
 `[0,1] → ℝ²` whose range has convex hull exactly `poly.realHull`. This is the
@@ -147,7 +405,7 @@ theorem initialWorm_isWormHull : InitialWorm.IsWormHull := by
       show |s.1 - t.1| = Real.sqrt ((s.1 - t.1) ^ 2) from (Real.sqrt_sq_eq_abs _).symm]
     refine Real.sqrt_le_sqrt ?_
     simp only [hfdef, PiLp.toLp_apply, Matrix.cons_val_zero, Matrix.cons_val_one,
-      Matrix.head_cons, Real.dist_eq, sq_abs]
+      Real.dist_eq, sq_abs]
     exact hcoord s.1 t.1
   -- Explicit values of the path on each leg.
   have hfle : ∀ t : Set.Icc (0 : ℝ) 1, t.1 ≤ 1 / 2 →

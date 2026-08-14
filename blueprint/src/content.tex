@@ -168,6 +168,28 @@ only through explicit approximation bounds.
   $Q$.
 \end{definition}
 
+\begin{lemma}[Soundness of the containment test]
+  \label{lem:contains-sound}
+  \lean{ConvexPolygon.mem_realHull_of_contains,
+    ConvexPolygon.realHull_subset_realHull}
+  \leanok
+  \uses{def:contains, def:convex-polygon}
+  Any rational point accepted by the containment test of a convex polygon
+  $Q$ lies in the real convex hull of $Q$'s vertices. Consequently, if the
+  subset test accepts $(P, Q)$, then the real region of $P$ is contained in
+  that of $Q$.
+\end{lemma}
+\begin{proof}
+  \leanok
+  Fan triangulation from vertex $0$: by induction on the number of
+  vertices, a point weakly to the left of every directed edge lies either
+  in the hull of the first $n-1$ vertices (if it is weakly left of the
+  closing diagonal) or in the last fan triangle, whose membership is
+  witnessed by explicit barycentric coordinates (subtriangle areas over the
+  total area). The fan triangles are positively oriented by the strict
+  convexity invariant of the polygon.
+\end{proof}
+
 \begin{definition}[Convex hull of a list of rational points]
   \label{def:convexHullRationalPoints}
   \lean{convexHullRationalPoints, ConvexPolygon.ofList}
