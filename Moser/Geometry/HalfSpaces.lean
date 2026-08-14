@@ -142,3 +142,29 @@ def ClosedHalfSpace.moveInward (h : ClosedHalfSpace ℚ) (dist tolerance : ℚ)
   let scaledDirection : Point ℚ := ![h.normal 0 * scaleFactor, h.normal 1 * scaleFactor]
   { basepoint := h.basepoint + scaledDirection, normal := h.normal,
     normal_pos := h.normal_pos }
+
+/--
+Change the half-space by moving the basepoint *outward* (against the normal direction),
+enlarging the half-space, by at least `dist` and at most `dist + tolerance`.
+
+The mirror image of `ClosedHalfSpace.moveInward`; see its docstring for why this is
+specialised to `ℚ`.
+-/
+def ClosedHalfSpace.moveOutward (h : ClosedHalfSpace ℚ) (dist tolerance : ℚ)
+    (hdist : 0 < dist) (htol : 0 < tolerance) :
+    ClosedHalfSpace ℚ :=
+  let sqLen := Point.lengthSq h.normal
+  let scaleFactor : ℚ :=
+    findRationalWithSquareBetween
+      (dist * dist / sqLen) ((dist + tolerance) * (dist + tolerance) / sqLen)
+      (by
+        have : 0 ≤ h.normal.lengthSq := Point.lengthSq_nonneg h.normal
+        have : 0 ≤ dist * dist := by nlinarith
+        positivity
+      ) (by
+        have : 0 < sqLen := by exact h.normal_pos
+        field_simp
+        nlinarith)
+  let scaledDirection : Point ℚ := ![h.normal 0 * scaleFactor, h.normal 1 * scaleFactor]
+  { basepoint := h.basepoint - scaledDirection, normal := h.normal,
+    normal_pos := h.normal_pos }

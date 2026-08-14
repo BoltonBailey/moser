@@ -8,6 +8,7 @@ import Moser.Geometry.PolygonArea
 import Moser.Geometry.PolygonWidget
 import Moser.Geometry.RationalPoint
 import Moser.Geometry.RationalUtility
+import Moser.LowerBound
 import Moser.Manipulation.Invariants
 import Moser.Manipulation.Operations
 import Moser.Real.CompactnessOutline

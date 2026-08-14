@@ -265,7 +265,7 @@ def IsOrientationPreservingIsometry (g : ℝ² → ℝ²) : Prop :=
 
 /-- The inverse of an orientation-preserving isometry is again one, and is a
 two-sided inverse of the original map. -/
-private lemma IsOrientationPreservingIsometry.exists_symm {g : ℝ² → ℝ²}
+lemma IsOrientationPreservingIsometry.exists_symm {g : ℝ² → ℝ²}
     (hg : IsOrientationPreservingIsometry g) :
     ∃ g', IsOrientationPreservingIsometry g' ∧
       Function.LeftInverse g' g ∧ Function.RightInverse g' g := by
@@ -278,7 +278,7 @@ private lemma IsOrientationPreservingIsometry.exists_symm {g : ℝ² → ℝ²}
   · intro y; simp
 
 /-- An orientation-preserving isometry is an isometry. -/
-private lemma IsOrientationPreservingIsometry.isometry {g : ℝ² → ℝ²}
+lemma IsOrientationPreservingIsometry.isometry {g : ℝ² → ℝ²}
     (hg : IsOrientationPreservingIsometry g) : Isometry g := by
   obtain ⟨e, v, _, rfl⟩ := hg
   refine Isometry.of_dist_eq (fun x y => ?_)

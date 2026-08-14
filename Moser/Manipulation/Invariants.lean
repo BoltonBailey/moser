@@ -11,16 +11,24 @@ This file defines the WorkingSet type with its three invariants.
 
 namespace Moser
 
-/-- The working set of polygons maintained during the algorithm -/
+/-- The working set of polygons maintained during the algorithm.
+
+The three invariants the algorithm maintains:
+
+* Invariant 1: all polygons are convex (guaranteed by the type).
+* Invariant 2 (`Moser.WorkingSet.ContainsInitialWorm`, in `Moser.LowerBound`):
+  every polygon contains the unshifted `InitialWorm`.
+* Invariant 3 (`Moser.WorkingSet.Sound`, in `Moser.LowerBound`): every pinned
+  convex worm cover of area at most `areaThreshold` contains the real region of
+  some polygon of the working set.
+
+Invariants 2 and 3 are stated as predicates in `Moser.LowerBound` (rather than as
+fields here) so that the operations in `Moser.Manipulation.Operations` remain
+plain computable functions; the preservation lemmas live alongside the
+predicates. -/
 structure WorkingSet where
   /-- The set of candidate polygons -/
   polygons : List (ConvexPolygon ℚ)
-  -- Invariant 1: All polygons are convex (guaranteed by type)
-  -- Invariant 2: All contain InitialWorm via some isometry
-  -- containsInitialWorm : ∀ p ∈ polygons, ∃ iso, InitialWorm ⊆ iso.apply(p)
-  -- Invariant 3: Any Moser set with area < threshold contains some polygon via isometry
-  -- moserSetProperty : ∀ M, IsMoserSet M → area M < areaThreshold →
-  --   ∃ p ∈ polygons, ∃ iso, p ⊆ iso.apply(M)
 
 namespace WorkingSet
 

@@ -20,10 +20,18 @@ value `d_*` for which `A_R + T(d_*) = A_*`, where
 
 Equivalently, the area of the convex hull of `P ∪ {p}` where `p` is at
 left-distance `d_*` from the directed line `V_i V_j` equals `A_*`. The
-*growth half-space* to the left of `V_i, V_j` is the closed half-space lying
-to the left of (and including) the line parallel to `V_i V_j` at perpendicular
-distance `d` to the left of the directed line. The *growth half-space
-intersection* is the intersection over all ordered pairs of distinct vertices.
+*growth half-space* of `(V_i, V_j)` is the closed half-space of points at
+signed left-distance at most `d` from the directed line: it is bounded by the
+line parallel to `V_i V_j` at perpendicular distance `d` on its left, and lies
+weakly to the right of that shifted line. The *growth half-space intersection*
+is the intersection over all ordered pairs of distinct vertices.
+
+Although `d_* = 2·(A_* − A_R)/|V_i V_j|` is irrational, the growth half-space
+itself is exactly rational: `p` is at left-distance at most `d_*` iff
+`crossProduct (V_j − V_i) (p − V_i) ≤ 2·(A_* − A_R)` (both sides are twice a
+triangle area over the base `V_i V_j`). So `growthHalfspace` is exact and
+tolerance-free; the tolerance only enters `growableDistance`, which converts
+the constraint into an explicit distance and is kept for the blueprint spec.
 
 The main lemma is that any point lying strictly outside the growth
 half-space intersection produces a convex hull whose area exceeds `A_*`.
@@ -37,15 +45,28 @@ namespace ConvexPolygon
 The area of the convex polygon `P` lying weakly to the right of the directed
 line through vertices `V_i → V_j` (not necessarily adjacent).
 
-Implementation note: this is a placeholder; the intended definition is the
-area of the (possibly non-convex) sub-polygon obtained by intersecting `P`
-with the closed half-space weakly to the right of the directed line through
-`V_i → V_j`. Any concrete implementation that computes this area
-from the polygon and the two vertex indices is acceptable.
+Implementation: Sutherland–Hodgman clipping of the (counterclockwise, cyclic)
+vertex chain against the closed half-plane weakly to the right of the directed
+line `V_i → V_j`, followed by the shoelace formula. For each directed edge
+`a → b` of `P` we emit `a` when `a` is weakly right, and the intersection of
+`a b` with the line when the edge crosses it. Since `V_i` and `V_j` lie on the
+line, the clipped chain is nonempty; when `P` lies weakly left of the line the
+clipped chain is degenerate and the area is `0`, as intended.
 -/
 def areaWeaklyRightOfVertexPair
     (poly : ConvexPolygon K) (i j : Fin poly.vertex_count) (_hij : i ≠ j) : K :=
-  sorry
+  let vi := poly.vertices i
+  let d := poly.vertices j - vi
+  -- signed side: positive strictly left of the directed line, negative strictly right
+  let side : Point K → K := fun p => Point.crossProduct d (p - vi)
+  let pts := poly.vertex_list
+  let clipped := (pts.zip (pts.rotate 1)).flatMap fun ab =>
+    let sa := side ab.1
+    let sb := side ab.2
+    (if sa ≤ 0 then [ab.1] else []) ++
+    (if decide (sa ≤ 0) != decide (sb ≤ 0) then
+      [ab.1 + (sa / (sa - sb)) • (ab.2 - ab.1)] else [])
+  shoelaceArea clipped
 
 /--
 The growable distance to the left of the directed line `V_i → V_j` at
@@ -55,33 +76,83 @@ the directed line `V_i V_j` and `T(d)` is the area of the triangle with
 vertices `V_i, V_j` and a point at perpendicular distance `d` to the left of
 the line), and such that `d` is within tolerance `τ` of the unique exact
 value `d_*` for which equality `A_R + T(d_*) = A_*` holds.
+
+Implementation: the exact value is `d_* = 2·(A_* − A_R)/L` with `L = |V_i V_j|`
+irrational, so we return `2·(A_* − A_R)/L₋` for a rational lower approximation
+`L₋ ≤ L` produced by `findRationalWithSquareBetween`, giving `d ≥ d_*` (so
+`A_R + T(d) ≥ A_*` errs on the safe side). The approximation window shrinks
+with `tolerance` (via the `ratio` factor below) so that the overshoot `d − d_*`
+is within the tolerance. When `A_R ≥ A_*` we return `0`.
+
+Specialised to `ℚ` because the lower approximation of the irrational edge
+length uses `findRationalWithSquareBetween` (cf. `ClosedHalfSpace.moveInward`).
 -/
 def growableDistance
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
-    (i j : Fin poly.vertex_count) (hij : i ≠ j) : K :=
-  sorry
+    (poly : ConvexPolygon ℚ) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance)
+    (i j : Fin poly.vertex_count) (hij : i ≠ j) : ℚ :=
+  let lenSq := Point.lengthSq (poly.vertices j - poly.vertices i)
+  have hlen : 0 < lenSq :=
+    Point.lengthSq_pos_of_ne _
+      (sub_ne_zero.mpr fun h => hij (poly.nodup h).symm)
+  let excess := areaThreshold - areaWeaklyRightOfVertexPair poly i j hij
+  if hex : excess ≤ 0 then 0
+  else
+    have hex' : 0 < excess := lt_of_not_ge hex
+    let m := min lenSq 1
+    have hm : 0 < m := lt_min hlen one_pos
+    let ratio := tolerance * m / (tolerance * m + 2 * excess)
+    have hden : 0 < tolerance * m + 2 * excess := by positivity
+    have hratio1 : ratio < 1 := by
+      rw [div_lt_one hden]
+      nlinarith
+    have hratio0 : 0 < ratio := by positivity
+    2 * excess /
+      findRationalWithSquareBetween (lenSq * (1 - ratio)) lenSq
+        (by nlinarith) (by nlinarith)
 
 /-- The growable distance is nonnegative. -/
 lemma growableDistance_nonneg
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
+    (poly : ConvexPolygon ℚ) (areaThreshold tolerance : ℚ) (htol : 0 < tolerance)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) :
     0 ≤ growableDistance poly areaThreshold tolerance htol i j hij := by
-  sorry
+  simp only [growableDistance]
+  split_ifs with hex
+  · exact le_rfl
+  · exact le_of_lt (div_pos (by linarith [lt_of_not_ge hex])
+      (findRationalWithSquareBetween_positive _ _ _ _))
 
 /--
-The growth half-space to the left of the ordered pair of vertices `(V_i, V_j)`:
-the closed half-space lying to the left of (and including) the line parallel
-to `V_i → V_j` at perpendicular distance `growableDistance` on the left side
-of the directed line.
+The growth half-space of the ordered pair of vertices `(V_i, V_j)`: the closed
+half-space of points at signed left-distance at most `growableDistance` (as
+`tolerance → 0`) from the directed line `V_i → V_j` — that is, the half-space
+bounded by the line parallel to `V_i → V_j` at perpendicular distance `d_*` on
+its left, lying weakly to the *right* of that shifted line. A point strictly
+outside it is so far to the left of `V_i → V_j` that the hull of `P ∪ {p}`
+contains, beyond the part of `P` weakly right of the line (area `A_R`), a
+triangle over the base `V_i V_j` of height `> d_*`, pushing the area past the
+threshold.
 
-If the growable distance is zero we return the closed half-space weakly to
-the left of the directed segment from `V_i` to `V_j`; otherwise we shift its
-boundary line outward by the growable distance.
+The construction is exact and rational (see the module docstring): the
+half-space is `{p | crossProduct (V_j − V_i) (p − V_i) ≤ 2·(A_* − A_R)}`,
+realized by shifting the basepoint of the weakly-right half-space of
+`V_i → V_j` to the left by `(2·excess / |V_i V_j|²) · rot90(V_j − V_i)`.
+When `A_R ≥ A_*` the excess is clamped to `0`, giving the half-space weakly
+to the right of the directed segment itself (a conservative superset of the
+true, empty-interior constraint — always on the safe side for the containment
+spec).
 -/
 def growthHalfspace
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
+    (poly : ConvexPolygon K) (areaThreshold : K)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) : ClosedHalfSpace K :=
-  sorry
+  let vi := poly.vertices i
+  let vj := poly.vertices j
+  let excess := max 0 (areaThreshold - areaWeaklyRightOfVertexPair poly i j hij)
+  let leftNormal := Point.rotate90Counterclockwise (vj - vi)
+  { basepoint := vi + (2 * excess / Point.lengthSq (vj - vi)) • leftNormal
+    normal := Point.rotate90Counterclockwise (vi - vj)
+    normal_pos := by
+      rw [Point.lengthSq_rotate90Counterclockwise]
+      exact Point.lengthSq_pos_of_ne _ (sub_ne_zero.mpr fun h => hij (poly.nodup h)) }
 
 /--
 A computable wrapper around `growthHalfspace` that does not depend on a proof
@@ -92,10 +163,10 @@ half-spaces over `List.finRange poly.vertex_count` without carrying the
 `i ≠ j` proof through the iteration.
 -/
 def growthHalfspaceOfPair
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
+    (poly : ConvexPolygon K) (areaThreshold : K)
     (i j : Fin poly.vertex_count) : ClosedHalfSpace K :=
   if hij : i ≠ j then
-    growthHalfspace poly areaThreshold tolerance htol i j hij
+    growthHalfspace poly areaThreshold i j hij
   else
     -- Default: a fixed half-space, chosen so the structure is well-formed.
     -- Concretely, the closed half-space `{ p | p₀ ≥ 0 }`.
@@ -119,9 +190,9 @@ The hypothesis "strictly outside" is encoded as `¬ (growthHalfspace …).contai
 i.e. the closed-half-space membership predicate returns `false`.
 -/
 lemma threshold_violated_outside_growth_halfspace
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
+    (poly : ConvexPolygon K) (areaThreshold : K)
     (i j : Fin poly.vertex_count) (hij : i ≠ j) (p : Point K)
-    (hp : ¬ (growthHalfspace poly areaThreshold tolerance htol i j hij).contains p) :
+    (hp : ¬ (growthHalfspace poly areaThreshold i j hij).contains p) :
     ∀ hull : ConvexPolygon K,
       ConvexPolygon.ofList (p :: poly.vertex_list) = some hull →
       areaThreshold < hull.area := by
@@ -138,13 +209,13 @@ half-spaces is fed to `ConvexPolygon.ofHalfSpaces`, which returns `none` if
 the intersection is degenerate.
 -/
 def growthHalfspaceIntersection
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance) :
+    (poly : ConvexPolygon K) (areaThreshold : K) :
     Option (ConvexPolygon K) :=
   let indices := List.finRange poly.vertex_count
   let halfSpaces : List (ClosedHalfSpace K) :=
     indices.flatMap (fun i =>
       (indices.filter (fun j => decide (i ≠ j))).map (fun j =>
-        growthHalfspaceOfPair poly areaThreshold tolerance htol i j))
+        growthHalfspaceOfPair poly areaThreshold i j))
   ConvexPolygon.ofHalfSpaces halfSpaces
 
 /--
@@ -157,9 +228,9 @@ point `p` lies outside `intersectionPoly`, then the area of the convex hull
 of `P ∪ {p}` is strictly greater than `A_*`.
 -/
 lemma threshold_violated_outside_growth_intersection
-    (poly : ConvexPolygon K) (areaThreshold tolerance : K) (htol : 0 < tolerance)
+    (poly : ConvexPolygon K) (areaThreshold : K)
     (p : Point K) (intersectionPoly : ConvexPolygon K)
-    (h_inter : growthHalfspaceIntersection poly areaThreshold tolerance htol
+    (h_inter : growthHalfspaceIntersection poly areaThreshold
       = some intersectionPoly)
     (hp : ¬ intersectionPoly.contains p) :
     ∀ hull : ConvexPolygon K,
