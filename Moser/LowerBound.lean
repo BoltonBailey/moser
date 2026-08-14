@@ -68,15 +68,8 @@ noncomputable def realHull (poly : ConvexPolygon ℚ) : Set ℝ² :=
 theorem convex_realHull (poly : ConvexPolygon ℚ) : Convex ℝ poly.realHull :=
   convex_convexHull ℝ _
 
-/-- **Area bridge.** The Lebesgue area of the real region of a rational convex
-polygon is its (rational, shoelace) `area`.
-
-Leaf `sorry` of the spine. Routine but substantial: relate `shoelaceArea` on the
-counterclockwise vertex list to the Lebesgue measure of the convex hull, e.g. by
-triangulating from a vertex and using the measure of a triangle. -/
-theorem volume_realHull (poly : ConvexPolygon ℚ) :
-    volume poly.realHull = ENNReal.ofReal (poly.area : ℝ) := by
-  sorry
+/- The **area bridge** `volume_realHull` is stated and proved at the end of
+this section, after the fan-decomposition machinery it rests on. -/
 
 /-! ### Soundness of the half-space test with respect to `realHull`
 
@@ -837,6 +830,296 @@ private lemma volume_convexHull_fan (w : ℕ → ℝ²) (n : ℕ) (hn : 3 ≤ n)
   refine Finset.sum_congr rfl fun k hk => ?_
   simp only [Finset.mem_Ico] at hk
   rw [volume_triangle (w 0) (w k) (w (k + 1)), abs_of_pos (hcons k hk.1 (by omega))]
+
+/-! ### The shoelace formula as an indexed sum
+
+`shoelaceArea` folds over the consecutive pairs of the cyclically closed
+vertex list; here we rewrite it as an indexed `Finset` sum and telescope the
+cyclic sum into the fan sum from vertex `0`. -/
+
+/-- The shoelace fold over consecutive pairs of a list, as an indexed sum. -/
+private lemma foldl_shoelace_aux :
+    ∀ (l : List (Point ℚ)) (c : ℚ),
+    (List.zip l l.tail).foldl
+        (fun acc pq => acc + (pq.1 0 * pq.2 1 - pq.2 0 * pq.1 1)) c
+      = c + ∑ k ∈ Finset.range (l.length - 1),
+          ((l.getD k ![0, 0]) 0 * (l.getD (k + 1) ![0, 0]) 1
+            - (l.getD (k + 1) ![0, 0]) 0 * (l.getD k ![0, 0]) 1) := by
+  intro l
+  induction l with
+  | nil => simp
+  | cons a t ih =>
+    intro c
+    cases t with
+    | nil => simp
+    | cons b t' =>
+      simp only [List.tail_cons] at ih ⊢
+      rw [List.zip_cons_cons, List.foldl_cons, ih]
+      simp only [List.length_cons, Nat.add_sub_cancel]
+      rw [Finset.sum_range_succ']
+      simp only [List.getD_cons_succ, List.getD_cons_zero]
+      ring
+
+/-- `shoelaceArea` as an indexed sum over the vertex list, with the closing
+edge separated out. -/
+private lemma shoelaceArea_eq_sum (l : List (Point ℚ)) (h3 : 3 ≤ l.length) :
+    shoelaceArea l
+      = |(∑ k ∈ Finset.range (l.length - 1),
+            Point.crossProduct (l.getD k ![0, 0]) (l.getD (k + 1) ![0, 0]))
+          + Point.crossProduct (l.getD (l.length - 1) ![0, 0]) (l.getD 0 ![0, 0])| / 2 := by
+  simp only [shoelaceArea]
+  rw [if_neg (by omega), foldl_shoelace_aux, zero_add]
+  congr 1
+  · congr 1
+    have hlen : (l ++ [l.headD ![0, 0]]).length - 1 = l.length := by
+      simp
+    rw [hlen]
+    have hsplit : l.length = (l.length - 1) + 1 := by omega
+    rw [hsplit, Finset.sum_range_succ, ← hsplit]
+    congr 1
+    · refine Finset.sum_congr rfl fun k hk => ?_
+      simp only [Finset.mem_range] at hk
+      rw [List.getD_append _ _ _ _ (by omega), List.getD_append _ _ _ _ (by omega),
+        Point.crossProduct]
+      ring
+    · rw [List.getD_append _ _ _ _ (by omega),
+        List.getD_append_right _ _ _ _ (le_refl l.length), Nat.sub_self]
+      have hheadD : ([l.headD ![0, 0]].getD 0 ![0, 0]) = l.getD 0 ![0, 0] := by
+        cases l with
+        | nil => rfl
+        | cons a t => rfl
+      rw [hheadD, Point.crossProduct]
+      ring
+
+/-- Expansion of the based cross product. -/
+private lemma crossProduct_sub_sub (a b c : Point ℚ) :
+    Point.crossProduct (a - c) (b - c)
+      = Point.crossProduct a b + Point.crossProduct c a - Point.crossProduct c b := by
+  simp only [Point.crossProduct, Pi.sub_apply]
+  ring
+
+/-- **Telescoping**: the fan sum from vertex `0` equals the cyclic shoelace
+sum. -/
+private lemma fan_sum_eq_cyclic (v : ℕ → Point ℚ) (n : ℕ) (hn : 3 ≤ n) :
+    (∑ k ∈ Finset.Ico 1 (n - 1), Point.crossProduct (v k - v 0) (v (k + 1) - v 0))
+      = (∑ k ∈ Finset.range (n - 1), Point.crossProduct (v k) (v (k + 1)))
+        + Point.crossProduct (v (n - 1)) (v 0) := by
+  have hexp : (∑ k ∈ Finset.Ico 1 (n - 1),
+        Point.crossProduct (v k - v 0) (v (k + 1) - v 0))
+      = ∑ k ∈ Finset.Ico 1 (n - 1), (Point.crossProduct (v k) (v (k + 1))
+          + (Point.crossProduct (v 0) (v k) - Point.crossProduct (v 0) (v (k + 1)))) := by
+    refine Finset.sum_congr rfl fun k _ => ?_
+    rw [crossProduct_sub_sub]
+    ring
+  rw [hexp, Finset.sum_add_distrib]
+  have htel : (∑ k ∈ Finset.Ico 1 (n - 1),
+        (Point.crossProduct (v 0) (v k) - Point.crossProduct (v 0) (v (k + 1))))
+      = Point.crossProduct (v 0) (v 1) - Point.crossProduct (v 0) (v (n - 1)) := by
+    rw [Finset.sum_Ico_eq_sum_range]
+    have h1 : ∀ i, 1 + i = i + 1 := fun i => by omega
+    calc (∑ k ∈ Finset.range (n - 1 - 1),
+            (Point.crossProduct (v 0) (v (1 + k))
+              - Point.crossProduct (v 0) (v (1 + k + 1))))
+        = Point.crossProduct (v 0) (v (1 + 0))
+            - Point.crossProduct (v 0) (v (1 + (n - 1 - 1))) := by
+          exact Finset.sum_range_sub' (fun k => Point.crossProduct (v 0) (v (1 + k))) _
+      _ = Point.crossProduct (v 0) (v 1) - Point.crossProduct (v 0) (v (n - 1)) := by
+          rw [show 1 + 0 = 1 by omega, show 1 + (n - 1 - 1) = n - 1 by omega]
+  rw [htel]
+  have hfirst : (∑ k ∈ Finset.range (n - 1), Point.crossProduct (v k) (v (k + 1)))
+      = Point.crossProduct (v 0) (v 1)
+        + ∑ k ∈ Finset.Ico 1 (n - 1), Point.crossProduct (v k) (v (k + 1)) := by
+    rw [Finset.range_eq_Ico, Finset.sum_eq_sum_Ico_succ_bot (by omega)]
+  rw [hfirst]
+  have hanti : Point.crossProduct (v (n - 1)) (v 0)
+      = -Point.crossProduct (v 0) (v (n - 1)) := by
+    simp only [Point.crossProduct]
+    ring
+  rw [hanti]
+  ring
+
+/-- **Area bridge.** The Lebesgue area of the real region of a rational convex
+polygon is its (rational, shoelace) `area`: the real hull decomposes into the
+fan triangles from vertex `0` (`volume_convexHull_fan`), whose volumes sum to
+the fan cross-product sum, which telescopes into the shoelace formula
+(`fan_sum_eq_cyclic`, `shoelaceArea_eq_sum`). -/
+theorem volume_realHull (poly : ConvexPolygon ℚ) :
+    volume poly.realHull = ENNReal.ofReal (poly.area : ℝ) := by
+  classical
+  haveI := poly.vertex_count_pos
+  have hn3 : 3 ≤ poly.vertex_count := poly.three_le_vertex_count
+  have hpos : 0 < poly.vertex_count := by omega
+  set wV : ℕ → Point ℚ :=
+    fun k => poly.vertices ⟨k % poly.vertex_count, Nat.mod_lt _ hpos⟩ with hwV
+  have hVk : ∀ (k : ℕ) (hk : k < poly.vertex_count), wV k = poly.vertices ⟨k, hk⟩ := by
+    intro k hk
+    simp only [hwV]
+    exact congrArg poly.vertices (Fin.ext (Nat.mod_eq_of_lt hk))
+  have hwn0 : wV poly.vertex_count = wV 0 := by
+    simp only [hwV]
+    exact congrArg poly.vertices (Fin.ext
+      (show poly.vertex_count % poly.vertex_count = 0 % poly.vertex_count by simp))
+  -- the strict counterclockwise conditions, in cyclic `ℕ`-indexed form
+  have hccwQ : ∀ k l : ℕ, k < poly.vertex_count → l < poly.vertex_count →
+      l ≠ k → l ≠ (k + 1) % poly.vertex_count →
+      0 < Point.crossProduct (wV (k + 1) - wV k) (wV l - wV k) := by
+    intro k l hk hl hlk hlk1
+    have hccw := poly.vertices_extremePoints ⟨k, hk⟩ ⟨l, hl⟩
+      (Fin.ne_of_val_ne (show l ≠ k from hlk))
+      (by
+        refine Fin.ne_of_val_ne ?_
+        change l ≠ _
+        rw [Fin.val_add, Fin.val_one',
+          Nat.mod_eq_of_lt (show 1 < poly.vertex_count by omega)]
+        exact hlk1)
+    simp only [Point.ccw, Point.isStrictlyLeftOf, decide_eq_true_eq] at hccw
+    have e1 : poly.vertices (⟨k, hk⟩ + 1) = wV (k + 1) := by
+      simp only [hwV]
+      refine congrArg poly.vertices (Fin.ext ?_)
+      rw [Fin.val_add, Fin.val_one',
+        Nat.mod_eq_of_lt (show 1 < poly.vertex_count by omega)]
+    have e2 : poly.vertices ⟨k, hk⟩ = wV k := (hVk k hk).symm
+    have e3 : poly.vertices ⟨l, hl⟩ = wV l := (hVk l hl).symm
+    rwa [e1, e2, e3] at hccw
+  have hcross0 : ∀ d : Point ℚ, Point.crossProduct d 0 = 0 := by
+    intro d
+    simp [Point.crossProduct]
+  have hcrossSelf : ∀ d : Point ℚ, Point.crossProduct d d = 0 := by
+    intro d
+    simp only [Point.crossProduct]
+    ring
+  -- the four hypotheses of the fan decomposition, over `ℚ`
+  have hVedgeQ : ∀ k l, k + 1 < poly.vertex_count → l < poly.vertex_count →
+      0 ≤ Point.crossProduct (wV (k + 1) - wV k) (wV l - wV k) := by
+    intro k l hk hl
+    rcases eq_or_ne l k with rfl | hlk
+    · simp [hcross0]
+    rcases eq_or_ne l (k + 1) with rfl | hlk1
+    · simp [hcrossSelf]
+    · exact (hccwQ k l (by omega) hl hlk (by rwa [Nat.mod_eq_of_lt (by omega)])).le
+  have hVcloseQ : ∀ l, l < poly.vertex_count →
+      0 ≤ Point.crossProduct (wV 0 - wV (poly.vertex_count - 1))
+        (wV l - wV (poly.vertex_count - 1)) := by
+    intro l hl
+    have hkey := hccwQ (poly.vertex_count - 1) l (by omega) hl
+    rw [show poly.vertex_count - 1 + 1 = poly.vertex_count by omega, Nat.mod_self,
+      hwn0] at hkey
+    rcases eq_or_ne l (poly.vertex_count - 1) with rfl | hlk
+    · simp [hcross0]
+    rcases eq_or_ne l 0 with rfl | hl0
+    · simp [hcrossSelf]
+    · exact (hkey hlk hl0).le
+  have hfanQ : ∀ k, 1 ≤ k → k + 2 ≤ poly.vertex_count →
+      0 < Point.crossProduct (wV (k + 1) - wV k) (wV 0 - wV k) := by
+    intro k hk1 hk2
+    exact hccwQ k 0 (by omega) (by omega) (by omega)
+      (by rw [Nat.mod_eq_of_lt (by omega)]; omega)
+  have h01Q : ∀ k, 2 ≤ k → k ≤ poly.vertex_count - 1 →
+      0 < Point.crossProduct (wV 1 - wV 0) (wV k - wV 0) := by
+    intro k hk2 hk
+    have h := hccwQ 0 k (by omega) (by omega) (by omega)
+      (by rw [Nat.mod_eq_of_lt (by omega)]; omega)
+    simpa using h
+  have hconsQ : ∀ k, 1 ≤ k → k + 2 ≤ poly.vertex_count →
+      0 < Point.crossProduct (wV k - wV 0) (wV (k + 1) - wV 0) := by
+    intro k hk1 hk2
+    have h := hfanQ k hk1 hk2
+    have hcyc : Point.crossProduct (wV k - wV 0) (wV (k + 1) - wV 0)
+        = Point.crossProduct (wV (k + 1) - wV k) (wV 0 - wV k) := by
+      simp only [Point.crossProduct, Pi.sub_apply]
+      ring
+    rwa [hcyc]
+  -- transfer to the real plane
+  have hVedgeR : ∀ k l, k + 1 < poly.vertex_count → l < poly.vertex_count →
+      0 ≤ rcross (Point.toEuclidean (wV (k + 1)) - Point.toEuclidean (wV k))
+        (Point.toEuclidean (wV l) - Point.toEuclidean (wV k)) := by
+    intro k l hk hl
+    rw [rcross_toEuclidean]
+    exact_mod_cast hVedgeQ k l hk hl
+  have hVcloseR : ∀ l, l < poly.vertex_count →
+      0 ≤ rcross (Point.toEuclidean (wV 0)
+          - Point.toEuclidean (wV (poly.vertex_count - 1)))
+        (Point.toEuclidean (wV l)
+          - Point.toEuclidean (wV (poly.vertex_count - 1))) := by
+    intro l hl
+    rw [rcross_toEuclidean]
+    exact_mod_cast hVcloseQ l hl
+  have hfanR : ∀ k, 1 ≤ k → k + 2 ≤ poly.vertex_count →
+      0 < rcross (Point.toEuclidean (wV (k + 1)) - Point.toEuclidean (wV k))
+        (Point.toEuclidean (wV 0) - Point.toEuclidean (wV k)) := by
+    intro k h1 h2
+    rw [rcross_toEuclidean]
+    exact_mod_cast hfanQ k h1 h2
+  have h01R : ∀ k, 2 ≤ k → k ≤ poly.vertex_count - 1 →
+      0 < rcross (Point.toEuclidean (wV 1) - Point.toEuclidean (wV 0))
+        (Point.toEuclidean (wV k) - Point.toEuclidean (wV 0)) := by
+    intro k h1 h2
+    rw [rcross_toEuclidean]
+    exact_mod_cast h01Q k h1 h2
+  -- apply the fan decomposition
+  have himg : (fun k => Point.toEuclidean (wV k)) '' Set.Iio poly.vertex_count
+      = Set.range (fun i => Point.toEuclidean (poly.vertices i)) := by
+    ext x
+    constructor
+    · rintro ⟨k, hk, rfl⟩
+      exact ⟨⟨k % poly.vertex_count, Nat.mod_lt _ hpos⟩, rfl⟩
+    · rintro ⟨i, rfl⟩
+      exact ⟨i.val, i.isLt, congrArg (fun j => Point.toEuclidean (poly.vertices j))
+        (Fin.ext (Nat.mod_eq_of_lt i.isLt))⟩
+  have hvol := volume_convexHull_fan (fun k => Point.toEuclidean (wV k))
+    poly.vertex_count hn3 hVedgeR hVcloseR hfanR h01R
+  rw [ConvexPolygon.realHull, ← himg, hvol]
+  -- identify the vertex list entries with `wV`
+  have hlen : poly.vertex_list.length = poly.vertex_count := by
+    simp [ConvexPolygon.vertex_list]
+  have hgetD : ∀ k, k < poly.vertex_count →
+      poly.vertex_list.getD k ![0, 0] = wV k := by
+    intro k hk
+    rw [List.getD_eq_getElem _ _ (by omega), hVk k hk]
+    simp [ConvexPolygon.vertex_list]
+  -- the rational area as the fan sum
+  have hareaQ : poly.area
+      = (∑ k ∈ Finset.Ico 1 (poly.vertex_count - 1),
+          Point.crossProduct (wV k - wV 0) (wV (k + 1) - wV 0)) / 2 := by
+    rw [ConvexPolygon.area, shoelaceArea_eq_sum poly.vertex_list (by omega), hlen]
+    have hcyc : (∑ k ∈ Finset.range (poly.vertex_count - 1),
+          Point.crossProduct (poly.vertex_list.getD k ![0, 0])
+            (poly.vertex_list.getD (k + 1) ![0, 0]))
+          + Point.crossProduct
+              (poly.vertex_list.getD (poly.vertex_count - 1) ![0, 0])
+              (poly.vertex_list.getD 0 ![0, 0])
+        = (∑ k ∈ Finset.range (poly.vertex_count - 1),
+            Point.crossProduct (wV k) (wV (k + 1)))
+          + Point.crossProduct (wV (poly.vertex_count - 1)) (wV 0) := by
+      congr 1
+      · refine Finset.sum_congr rfl fun k hk => ?_
+        simp only [Finset.mem_range] at hk
+        rw [hgetD k (by omega), hgetD (k + 1) (by omega)]
+      · rw [hgetD _ (by omega), hgetD 0 (by omega)]
+    rw [hcyc, ← fan_sum_eq_cyclic wV poly.vertex_count hn3,
+      abs_of_nonneg (Finset.sum_nonneg fun k hk => by
+        simp only [Finset.mem_Ico] at hk
+        exact (hconsQ k hk.1 (by omega)).le)]
+  -- assemble
+  have hLHS : (∑ k ∈ Finset.Ico 1 (poly.vertex_count - 1),
+        ENNReal.ofReal (rcross
+          (Point.toEuclidean (wV k) - Point.toEuclidean (wV 0))
+          (Point.toEuclidean (wV (k + 1)) - Point.toEuclidean (wV 0)) / 2))
+      = ∑ k ∈ Finset.Ico 1 (poly.vertex_count - 1),
+          ENNReal.ofReal
+            (((Point.crossProduct (wV k - wV 0) (wV (k + 1) - wV 0) : ℚ) : ℝ) / 2) := by
+    refine Finset.sum_congr rfl fun k _ => ?_
+    rw [rcross_toEuclidean]
+  rw [hLHS, ← ENNReal.ofReal_sum_of_nonneg (fun k hk => by
+    simp only [Finset.mem_Ico] at hk
+    have h := hconsQ k hk.1 (by omega)
+    have : (0 : ℝ) ≤ ((Point.crossProduct (wV k - wV 0) (wV (k + 1) - wV 0) : ℚ) : ℝ) := by
+      exact_mod_cast h.le
+    linarith)]
+  congr 1
+  rw [← Finset.sum_div, hareaQ]
+  push_cast
+  ring
 
 /-- `poly` is the convex hull of a genuine worm: some `1`-Lipschitz curve
 `[0,1] → ℝ²` whose range has convex hull exactly `poly.realHull`. This is the

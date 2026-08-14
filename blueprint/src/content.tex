@@ -242,6 +242,31 @@ only through explicit approximation bounds.
   \]
 \end{definition}
 
+\begin{lemma}[Area bridge]
+  \label{lem:area-bridge}
+  \lean{ConvexPolygon.volume_realHull}
+  \leanok
+  \uses{def:shoelace, def:convex-polygon}
+  The Lebesgue measure of the real convex hull of the vertices of a
+  rational convex polygon equals its shoelace area.
+\end{lemma}
+\begin{proof}
+  \leanok
+  The hull decomposes into the fan triangles from vertex $0$: the fan
+  covers the hull by the same induction as in
+  Lemma~\ref{lem:contains-sound}, and the triangles overlap only in null
+  diagonal segments. The separating diagonals are supplied by
+  \emph{diagonal positivity} --- every vertex lies strictly left of every
+  diagonal from vertex $0$ --- which follows from the edge conditions by
+  transitivity of the angular order inside an open half-plane, an
+  instance of the Grassmann--Pl\"ucker relation. Each fan triangle is the
+  affine image of the standard simplex, whose volume $1/2$ is computed by
+  reflecting it onto the other half of the unit square; the linear part
+  scales by its determinant, the cross product of the edge vectors.
+  Summing and telescoping the fan cross products yields the cyclic
+  shoelace sum, which is nonnegative for a counterclockwise polygon.
+\end{proof}
+
 \chapter{Planar isometries}
 
 \begin{definition}[Direct planar isometry]
