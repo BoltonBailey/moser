@@ -564,6 +564,280 @@ private lemma volume_triangle (a b c : ℝ²) :
           ENNReal.ofReal_inv_of_pos (by norm_num : (0 : ℝ) < 2)]
         norm_num
 
+/-! ### Fan decomposition of a convex polygon
+
+The hull of the vertex cycle is the union of the fan triangles from vertex
+`0`, the fan triangles overlap only in null diagonal segments, and hence the
+volume of the hull is the sum of the fan triangle volumes. The key geometric
+input is *diagonal positivity* — every pair of distinct non-zero vertices is
+positively oriented seen from `w 0` — which follows from the edge conditions
+by transitivity of the angular order inside an open half-plane, itself an
+instance of the Grassmann–Plücker relation. -/
+
+/-- The Grassmann–Plücker relation for planar cross products. -/
+private lemma rcross_pluecker (d u v t : ℝ²) :
+    rcross d v * rcross u t = rcross d u * rcross v t + rcross d t * rcross u v := by
+  simp only [rcross]
+  ring
+
+/-- Transitivity of the angular order about the origin, within the open
+half-plane on the positive side of `d`. -/
+private lemma rcross_trans {d u v t : ℝ²} (hdu : 0 < rcross d u) (hdv : 0 < rcross d v)
+    (hdt : 0 < rcross d t) (huv : 0 < rcross u v) (hvt : 0 < rcross v t) :
+    0 < rcross u t := by
+  nlinarith [rcross_pluecker d u v t, mul_pos hdu hvt, mul_pos hdt huv]
+
+/-- **Diagonal positivity.** If all vertices `w 2, …, w (n-1)` lie strictly to
+the left of the ray `w 0 → w 1`, and consecutive fan triangles are positively
+oriented, then every diagonal pair is positively oriented as seen from `w 0`. -/
+private lemma fan_diag_pos (w : ℕ → ℝ²) (n : ℕ)
+    (h01 : ∀ k, 2 ≤ k → k ≤ n - 1 → 0 < rcross (w 1 - w 0) (w k - w 0))
+    (hcons : ∀ k, 1 ≤ k → k + 2 ≤ n → 0 < rcross (w k - w 0) (w (k + 1) - w 0)) :
+    ∀ j i, 1 ≤ i → i < j → j ≤ n - 1 → 0 < rcross (w i - w 0) (w j - w 0) := by
+  intro j
+  induction j with
+  | zero => omega
+  | succ m ih =>
+    intro i hi1 hij hj
+    rcases eq_or_lt_of_le (Nat.lt_succ_iff.mp hij) with rfl | him
+    · -- `j = i + 1`: the consecutive fan triangle
+      exact hcons i hi1 (by omega)
+    · -- `i < m`: chain through `m` by Plücker transitivity
+      rcases eq_or_lt_of_le hi1 with rfl | hi2
+      · exact h01 (m + 1) (by omega) hj
+      · exact rcross_trans
+          (h01 i (by omega) (by omega))
+          (h01 m (by omega) (by omega))
+          (h01 (m + 1) (by omega) hj)
+          (ih i hi1 him (by omega))
+          (hcons m (by omega) (by omega))
+
+/-- A closed half-plane is convex, so it absorbs the convex hull of any set of
+points it contains. -/
+private lemma convexHull_subset_halfplane {S : Set ℝ²} (d w₀ : ℝ²)
+    (h : ∀ y ∈ S, 0 ≤ rcross d (y - w₀)) :
+    convexHull ℝ S ⊆ {y : ℝ² | 0 ≤ rcross d (y - w₀)} := by
+  refine convexHull_min h ?_
+  intro x hx y hy s t hs ht hst
+  have hexp : rcross d (s • x + t • y - w₀)
+      = s * rcross d (x - w₀) + t * rcross d (y - w₀) := by
+    have ht1 : t = 1 - s := by linarith
+    subst ht1
+    simp only [rcross, PiLp.sub_apply, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+    ring
+  change 0 ≤ rcross d (s • x + t • y - w₀)
+  rw [hexp]
+  exact add_nonneg (mul_nonneg hs hx) (mul_nonneg ht hy)
+
+/-- The fan version of `mem_convexHull_fan`: a point weakly to the left of
+every directed edge lies in the *union of the fan triangles*, not merely in
+the hull. -/
+private lemma mem_iUnion_fan (w : ℕ → ℝ²) (v : ℝ²) : ∀ n, 3 ≤ n →
+    (∀ k, k + 1 < n → 0 ≤ rcross (w (k + 1) - w k) (v - w k)) →
+    0 ≤ rcross (w 0 - w (n - 1)) (v - w (n - 1)) →
+    (∀ k, 1 ≤ k → k + 2 ≤ n → 0 < rcross (w (k + 1) - w k) (w 0 - w k)) →
+    v ∈ ⋃ k ∈ Finset.Ico 1 (n - 1), convexHull ℝ ({w 0, w k, w (k + 1)} : Set ℝ²) := by
+  intro n
+  induction n with
+  | zero => intro h; exact absurd h (by omega)
+  | succ m ih =>
+    intro hn hedge hclose hfan
+    rcases eq_or_lt_of_le hn with heq | hlt
+    · -- base case `n = 3`: the single triangle `k = 1`
+      obtain rfl : m = 2 := by omega
+      have hD : 0 < rcross (w 1 - w 0) (w 2 - w 0) := by
+        have h := hfan 1 le_rfl (by norm_num)
+        rwa [← rcross_cycle (w 0) (w 1) (w 2)] at h
+      have hclose' : 0 ≤ rcross (w 0 - w 2) (v - w 2) := hclose
+      have hmem := mem_convexHull_triangle hD (hedge 0 (by norm_num))
+        (hedge 1 (by norm_num)) hclose'
+      exact Set.mem_biUnion (by simp) hmem
+    · -- inductive step `n = m + 1 ≥ 4`
+      have hm3 : 3 ≤ m := by omega
+      by_cases hcase : 0 ≤ rcross (w 0 - w (m - 1)) (v - w (m - 1))
+      · have hsub := ih hm3 (fun k hk => hedge k (by omega)) hcase
+          (fun k hk1 hk2 => hfan k hk1 (by omega))
+        refine Set.mem_of_subset_of_mem (Set.biUnion_subset_biUnion_left ?_) hsub
+        intro k hk
+        simp only [Finset.coe_Ico, Set.mem_Ico] at hk ⊢
+        omega
+      · push Not at hcase
+        have hm1 : m - 1 + 1 = m := by omega
+        have hD : 0 < rcross (w (m - 1) - w 0) (w m - w 0) := by
+          have h := hfan (m - 1) (by omega) (by omega)
+          rw [hm1] at h
+          rwa [← rcross_cycle (w 0) (w (m - 1)) (w m)] at h
+        have h1 : 0 ≤ rcross (w (m - 1) - w 0) (v - w 0) := by
+          have h := rcross_flip (w 0) (w (m - 1)) v
+          linarith
+        have h2 : 0 ≤ rcross (w m - w (m - 1)) (v - w (m - 1)) := by
+          have h := hedge (m - 1) (by omega)
+          rwa [hm1] at h
+        have h3 : 0 ≤ rcross (w 0 - w m) (v - w m) := hclose
+        have hmem := mem_convexHull_triangle hD h1 h2 h3
+        have hmem' : v ∈ convexHull ℝ ({w 0, w (m - 1), w (m - 1 + 1)} : Set ℝ²) := by
+          rwa [hm1]
+        exact Set.mem_biUnion (by simp only [Finset.coe_Ico, Set.mem_Ico]; omega) hmem'
+
+private lemma rcross_zero_right (u : ℝ²) : rcross u 0 = 0 := by
+  simp [rcross]
+
+/-- Any line in the plane is a null set: it is a proper affine subspace. -/
+private lemma volume_line (w d : ℝ²) (hd : d ≠ 0) :
+    volume {y : ℝ² | rcross d (y - w) = 0} = 0 := by
+  classical
+  set f : ℝ² →ₗ[ℝ] ℝ :=
+    (-(d 1)) • PiLp.projₗ (𝕜 := ℝ) 2 (fun _ : Fin 2 => ℝ) (0 : Fin 2)
+      + (d 0) • PiLp.projₗ (𝕜 := ℝ) 2 (fun _ : Fin 2 => ℝ) (1 : Fin 2) with hf
+  have hfy : ∀ y : ℝ², f y = rcross d y := by
+    intro y
+    simp only [hf, LinearMap.add_apply, LinearMap.smul_apply, PiLp.projₗ_apply,
+      smul_eq_mul, rcross]
+    ring
+  have hdz : 0 < rcross d (WithLp.toLp 2 ![-(d 1), d 0]) := by
+    have hcoord : d 0 ≠ 0 ∨ d 1 ≠ 0 := by
+      by_contra hcon
+      push Not at hcon
+      exact hd (PiLp.ext fun i => by fin_cases i <;> simp [hcon.1, hcon.2])
+    have hval : rcross d (WithLp.toLp 2 ![-(d 1), d 0]) = d 0 * d 0 + d 1 * d 1 := by
+      simp only [rcross, Matrix.cons_val_zero, Matrix.cons_val_one]
+      ring
+    rw [hval]
+    rcases hcoord with h | h
+    · nlinarith [mul_self_nonneg (d 1), mul_self_pos.mpr h]
+    · nlinarith [mul_self_nonneg (d 0), mul_self_pos.mpr h]
+  have hset : {y : ℝ² | rcross d (y - w) = 0}
+      = (AffineSubspace.mk' w (LinearMap.ker f) : Set ℝ²) := by
+    ext y
+    simp only [Set.mem_setOf_eq, SetLike.mem_coe, AffineSubspace.mem_mk', vsub_eq_sub,
+      LinearMap.mem_ker, hfy]
+  have hne : AffineSubspace.mk' w (LinearMap.ker f) ≠ ⊤ := by
+    intro htop
+    have hmem : w + WithLp.toLp 2 ![-(d 1), d 0]
+        ∈ AffineSubspace.mk' w (LinearMap.ker f) := by
+      rw [htop]
+      exact AffineSubspace.mem_top ℝ ℝ² _
+    rw [AffineSubspace.mem_mk'] at hmem
+    have hzero : f (WithLp.toLp 2 ![-(d 1), d 0]) = 0 := by
+      simpa [vsub_eq_sub, add_sub_cancel_left, LinearMap.mem_ker] using hmem
+    rw [hfy] at hzero
+    exact absurd hzero (ne_of_gt hdz)
+  rw [hset]
+  exact Measure.addHaar_affineSubspace volume _ hne
+
+/-- **Fan additivity**: the volume of the hull of the vertex cycle is the sum
+of the volumes of the fan triangles from vertex `0`. The triangles overlap
+only in diagonal segments, which are null; diagonal positivity provides the
+separating lines. -/
+private lemma volume_convexHull_fan (w : ℕ → ℝ²) (n : ℕ) (hn : 3 ≤ n)
+    (hVedge : ∀ k l, k + 1 < n → l < n → 0 ≤ rcross (w (k + 1) - w k) (w l - w k))
+    (hVclose : ∀ l, l < n → 0 ≤ rcross (w 0 - w (n - 1)) (w l - w (n - 1)))
+    (hfan : ∀ k, 1 ≤ k → k + 2 ≤ n → 0 < rcross (w (k + 1) - w k) (w 0 - w k))
+    (h01 : ∀ k, 2 ≤ k → k ≤ n - 1 → 0 < rcross (w 1 - w 0) (w k - w 0)) :
+    volume (convexHull ℝ (w '' Set.Iio n))
+      = ∑ k ∈ Finset.Ico 1 (n - 1),
+          ENNReal.ofReal (rcross (w k - w 0) (w (k + 1) - w 0) / 2) := by
+  classical
+  have hcons : ∀ k, 1 ≤ k → k + 2 ≤ n → 0 < rcross (w k - w 0) (w (k + 1) - w 0) := by
+    intro k hk1 hk2
+    have h := hfan k hk1 hk2
+    rwa [← rcross_cycle (w 0) (w k) (w (k + 1))] at h
+  have hdiag := fan_diag_pos w n h01 hcons
+  -- the decomposition into fan triangles
+  have hdecomp : convexHull ℝ (w '' Set.Iio n)
+      = ⋃ k ∈ Finset.Ico 1 (n - 1), convexHull ℝ ({w 0, w k, w (k + 1)} : Set ℝ²) := by
+    apply Set.Subset.antisymm
+    · intro v hv
+      have hedgev : ∀ k, k + 1 < n → 0 ≤ rcross (w (k + 1) - w k) (v - w k) := by
+        intro k hk
+        exact convexHull_subset_halfplane (w (k + 1) - w k) (w k)
+          (by rintro y ⟨l, hl, rfl⟩; exact hVedge k l hk hl) hv
+      have hclosev : 0 ≤ rcross (w 0 - w (n - 1)) (v - w (n - 1)) :=
+        convexHull_subset_halfplane (w 0 - w (n - 1)) (w (n - 1))
+          (by rintro y ⟨l, hl, rfl⟩; exact hVclose l hl) hv
+      exact mem_iUnion_fan w v n hn hedgev hclosev hfan
+    · refine Set.iUnion₂_subset fun k hk => ?_
+      refine convexHull_mono ?_
+      rintro x hx
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
+      simp only [Finset.mem_Ico] at hk
+      rcases hx with rfl | rfl | rfl
+      · exact ⟨0, Set.mem_Iio.mpr (by omega), rfl⟩
+      · exact ⟨k, Set.mem_Iio.mpr (by omega), rfl⟩
+      · exact ⟨k + 1, Set.mem_Iio.mpr (by omega), rfl⟩
+  -- pairwise null overlaps, separated by the diagonal through `w 0, w (k+1)`
+  have key : ∀ k l, 1 ≤ k → k < l → l < n - 1 →
+      volume (convexHull ℝ ({w 0, w k, w (k + 1)} : Set ℝ²)
+        ∩ convexHull ℝ ({w 0, w l, w (l + 1)} : Set ℝ²)) = 0 := by
+    intro k l hk1 hkl hl
+    have hd0 : w (k + 1) - w 0 ≠ 0 := by
+      intro h0
+      have h := hcons k hk1 (by omega)
+      rw [h0, rcross_zero_right] at h
+      exact lt_irrefl _ h
+    have hT1 : convexHull ℝ ({w 0, w k, w (k + 1)} : Set ℝ²)
+        ⊆ {y : ℝ² | 0 ≤ rcross (w 0 - w (k + 1)) (y - w 0)} := by
+      refine convexHull_subset_halfplane _ _ ?_
+      intro y hy
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hy
+      rcases hy with rfl | rfl | rfl
+      · rw [sub_self, rcross_zero_right]
+      · have h := hcons k hk1 (by omega)
+        have heq : rcross (w 0 - w (k + 1)) (w k - w 0)
+            = rcross (w k - w 0) (w (k + 1) - w 0) := by
+          simp only [rcross, PiLp.sub_apply]
+          ring
+        rw [heq]
+        exact h.le
+      · have heq : rcross (w 0 - w (k + 1)) (w (k + 1) - w 0) = 0 := by
+          simp only [rcross, PiLp.sub_apply]
+          ring
+        exact le_of_eq heq.symm
+    have hT2 : convexHull ℝ ({w 0, w l, w (l + 1)} : Set ℝ²)
+        ⊆ {y : ℝ² | 0 ≤ rcross (w (k + 1) - w 0) (y - w 0)} := by
+      refine convexHull_subset_halfplane _ _ ?_
+      intro y hy
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hy
+      rcases hy with rfl | rfl | rfl
+      · rw [sub_self, rcross_zero_right]
+      · rcases eq_or_lt_of_le (show k + 1 ≤ l by omega) with heq | hlt
+        · rw [← heq]
+          have hz : rcross (w (k + 1) - w 0) (w (k + 1) - w 0) = 0 := by
+            simp only [rcross, PiLp.sub_apply]
+            ring
+          exact le_of_eq hz.symm
+        · exact (hdiag l (k + 1) (by omega) hlt (by omega)).le
+      · exact (hdiag (l + 1) (k + 1) (by omega) (by omega) (by omega)).le
+    refine measure_mono_null (fun y hy => ?_) (volume_line (w 0) (w (k + 1) - w 0) hd0)
+    obtain ⟨hy1, hy2⟩ := hy
+    have h1 : 0 ≤ rcross (w 0 - w (k + 1)) (y - w 0) := hT1 hy1
+    have h2 : 0 ≤ rcross (w (k + 1) - w 0) (y - w 0) := hT2 hy2
+    have hflip : rcross (w 0 - w (k + 1)) (y - w 0)
+        = -rcross (w (k + 1) - w 0) (y - w 0) := by
+      simp only [rcross, PiLp.sub_apply]
+      ring
+    rw [hflip] at h1
+    simp only [Set.mem_setOf_eq]
+    linarith
+  have hpair : (↑(Finset.Ico 1 (n - 1)) : Set ℕ).Pairwise
+      (Function.onFun (MeasureTheory.AEDisjoint volume)
+        fun k => convexHull ℝ ({w 0, w k, w (k + 1)} : Set ℝ²)) := by
+    intro k hk l hl hkl
+    simp only [Finset.coe_Ico, Set.mem_Ico] at hk hl
+    rcases lt_or_gt_of_ne hkl with h | h
+    · exact key k l hk.1 h hl.2
+    · exact MeasureTheory.AEDisjoint.symm (key l k hl.1 h hk.2)
+  have hmeasT : ∀ k ∈ Finset.Ico 1 (n - 1),
+      NullMeasurableSet (convexHull ℝ ({w 0, w k, w (k + 1)} : Set ℝ²)) volume := by
+    intro k _
+    exact ((Set.Finite.isCompact_convexHull ℝ
+      (((Set.finite_singleton (w (k + 1))).insert (w k)).insert
+        (w 0))).isClosed.measurableSet).nullMeasurableSet
+  rw [hdecomp, measure_biUnion_finset₀ hpair hmeasT]
+  refine Finset.sum_congr rfl fun k hk => ?_
+  simp only [Finset.mem_Ico] at hk
+  rw [volume_triangle (w 0) (w k) (w (k + 1)), abs_of_pos (hcons k hk.1 (by omega))]
+
 /-- `poly` is the convex hull of a genuine worm: some `1`-Lipschitz curve
 `[0,1] → ℝ²` whose range has convex hull exactly `poly.realHull`. This is the
 hypothesis under which adjoining `poly` to the working set (`wormAdding`) is
