@@ -2,9 +2,9 @@ module
 
 public import Mathlib
 public import Moser.Geometry.PolygonArea
-public meta import Mathlib
-public meta import Moser.Geometry.Polygon
-public meta import Moser.Geometry.PolygonArea
+meta import Mathlib
+meta import Moser.Geometry.Polygon
+meta import Moser.Geometry.PolygonArea
 
 @[expose] public section
 

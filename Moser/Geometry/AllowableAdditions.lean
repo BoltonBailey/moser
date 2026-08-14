@@ -4,7 +4,7 @@ public import Moser.Geometry.HalfSpaces
 public import Moser.Geometry.Polygon
 public import Moser.Geometry.PolygonArea
 
-@[expose] public section
+public section
 
 /-!
 # Allowable Additions

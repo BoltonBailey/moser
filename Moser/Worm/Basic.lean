@@ -3,7 +3,7 @@ module
 public import Mathlib
 public import Moser.Geometry.Polygon
 
-@[expose] public section
+public section
 
 /-!
 # Worms

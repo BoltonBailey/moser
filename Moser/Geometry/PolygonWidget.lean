@@ -6,7 +6,7 @@ public meta import ProofWidgets.Data.Svg
 public meta import ProofWidgets.Component.HtmlDisplay
 public meta import Batteries.Data.Rat.Float
 
-@[expose] public section
+public section
 
 /-!
 # Visualising convex polygons

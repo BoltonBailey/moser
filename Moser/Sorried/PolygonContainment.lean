@@ -4,7 +4,7 @@ public import Mathlib
 public import Moser.Geometry.Polygon
 public import Moser.DirectIsometry.Basic
 
-@[expose] public section
+public section
 
 /-!
 # Containment of a polygon under rigid motions (STUB)

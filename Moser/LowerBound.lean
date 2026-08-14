@@ -4,13 +4,13 @@ public import Mathlib
 public import Moser.Constants
 public import Moser.Manipulation.Operations
 public import Moser.Real.CompactnessOutline
-public meta import Mathlib
-public meta import Moser.Constants
-public meta import Moser.Geometry.Polygon
-public meta import Moser.Manipulation.Invariants
-public meta import Moser.Manipulation.Operations
+meta import Mathlib
+meta import Moser.Constants
+meta import Moser.Geometry.Polygon
+meta import Moser.Manipulation.Invariants
+meta import Moser.Manipulation.Operations
 
-@[expose] public section
+public section
 
 /-!
 # The lower-bound spine

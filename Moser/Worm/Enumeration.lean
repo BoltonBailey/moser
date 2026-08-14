@@ -4,7 +4,7 @@ public import Mathlib
 public import Moser.Worm.Basic
 public import Moser.DirectIsometry.Discretization
 
-@[expose] public section
+public section
 
 /-!
 # Worm Enumeration

@@ -2,7 +2,7 @@ module
 
 public import Mathlib
 public import Moser.Manipulation.Invariants
-public import Moser.Worm.Basic
+import Moser.Worm.Basic
 public import Moser.DirectIsometry.Discretization
 
 @[expose] public section
