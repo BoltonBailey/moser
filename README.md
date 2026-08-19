@@ -4,6 +4,7 @@ This repository (or at least it's initial commit) is a result of me telling clau
 
 Update: I have now also made some changes independent of this first attempt.
 
-Useful pdf links:
+Useful links:
 
 - <https://scispace.com/pdf/the-worm-problem-of-leo-moser-28wawo4xwt.pdf>
+- [Claude code artifact depicting the broadworm](https://claude.ai/code/artifact/3afda3ba-5e74-46ce-99c7-fced3ac236f0)
