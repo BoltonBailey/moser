@@ -56,7 +56,8 @@ instance [DecidableEq K] : DecidableEq (NondegenPolygon K) := fun a b => by
 
 instance (poly : NondegenPolygon K) : NeZero poly.vertex_count := poly.vertex_count_pos
 
-/-- The open half-space strictly to the left of the directed edge from vertex `i` to vertex `i+1`. -/
+/-- The open half-space strictly to the left of the directed edge from vertex `i` to
+vertex `i+1`. -/
 def NondegenPolygon.getStrictlyLeftHalfspace (ng : NondegenPolygon K) (i : Fin ng.vertex_count) :
     OpenHalfSpace K :=
   let p1 := ng.vertices i
@@ -207,13 +208,33 @@ Should return a list of vertices such that:
 - The returned vertices are extreme points of the convex hull
   (no vertex is a convex combination of others).
 
-Implementation: lex-sort the points, then stitch the two monotone-chain scans
-together via `convexHullFromSorted`. Consecutive duplicates in the sorted list
-are absorbed by `grahamScanStep`, since `Point.ccw` is strict and
-returns `false` whenever two of its arguments coincide.
+Implementation: lex-sort the points, stitch the two monotone-chain scans
+together via `convexHullFromSorted`, and then **validate** the result: a list of
+three or more points is returned only if it really is a strictly convex
+counterclockwise cycle (`IsCCWPolygon`), and `[]` is returned otherwise.
+Consecutive duplicates in the sorted list are absorbed by `grahamScanStep`,
+since `Point.ccw` is strict and returns `false` whenever two of its arguments
+coincide.
+
+Validation is what makes `convexHullPoints_convex` — the property every
+downstream user needs — provable, at the cost of one `O(n²)` check that
+`ConvexPolygon.ofList` was performing anyway. It leaves one open question, which
+is the *completeness* of the monotone chain:
+
+**TODO.** Validation should never reject: whenever the input has at least three
+extreme points, `convexHullFromSorted` should produce a strictly convex cycle.
+Proving that is the correctness statement of Andrew's monotone chain (the two
+scans are `x`-monotone and meet at the extreme abscissae); the chain invariants
+`lowerHullScan_reverse_isCCWChain` and `upperHullScan_reverse_isCCWChain` are the
+starting point, but the seam and the deduplicating filter still need to be
+analysed. Note that no *soundness* claim depends on it.
 -/
 def convexHullPoints [DecidableEq K] (points : List (Point K)) : List (Point K) :=
-  convexHullFromSorted (sortPointsLex points)
+  let hull := convexHullFromSorted (sortPointsLex points)
+  if h : 3 ≤ hull.length then
+    haveI : NeZero hull.length := ⟨by omega⟩
+    if IsCCWPolygon (n := hull.length) hull.get then hull else []
+  else hull
 
 /-- Each step of the Graham scan returns a sublist of the stack with the new point pushed. -/
 lemma grahamScanStep_sublist (stack : List (Point K)) (p : Point K) :
@@ -303,10 +324,62 @@ lemma convexHullFromSorted_nodup [DecidableEq K] {sorted : List (Point K)} (h : 
     obtain ⟨_, hx_not⟩ := hx_filt
     exact (of_decide_eq_true hx_not) hx_lower
 
+/-- Every point of the lex-sorted list came from the input list. -/
+lemma mem_of_mem_sortPointsLex [DecidableEq K] {points : List (Point K)} {x : Point K}
+    (h : x ∈ sortPointsLex points) : x ∈ points := by
+  rw [sortPointsLex] at h
+  have hperm : (points.dedup.mergeSort Point.lexLE).Perm points.dedup :=
+    List.mergeSort_perm points.dedup Point.lexLE
+  exact List.mem_dedup.mp (hperm.mem_iff.mp h)
+
+/-- The stitched hull output introduces no new points. -/
+lemma mem_of_mem_convexHullFromSorted [DecidableEq K] {sorted : List (Point K)} {x : Point K}
+    (h : x ∈ convexHullFromSorted sorted) : x ∈ sorted := by
+  rcases sorted with _ | ⟨p, tl⟩
+  · simp [convexHullFromSorted] at h
+  rcases tl with _ | ⟨q, rest⟩
+  · simpa [convexHullFromSorted] using h
+  · set L := p :: q :: rest with hL
+    have hlower : ∀ y ∈ (lowerHullScan L).reverse.dropLast, y ∈ L := by
+      intro y hy
+      have h1 : y ∈ (lowerHullScan L).reverse := List.dropLast_subset _ hy
+      have h2 : y ∈ lowerHullScan L := List.mem_reverse.mp h1
+      have h3 : y ∈ L.reverse := (lowerHullScan_sublist L).subset h2
+      exact List.mem_reverse.mp h3
+    have hupper : ∀ y ∈ (upperHullScan L).reverse.dropLast, y ∈ L := by
+      intro y hy
+      have h1 : y ∈ (upperHullScan L).reverse := List.dropLast_subset _ hy
+      have h2 : y ∈ upperHullScan L := List.mem_reverse.mp h1
+      exact (upperHullScan_sublist L).subset h2
+    have hsplit : x ∈ (lowerHullScan L).reverse.dropLast ∨
+        x ∈ (upperHullScan L).reverse.dropLast := by
+      have h' : x ∈ (lowerHullScan L).reverse.dropLast ++
+          ((upperHullScan L).reverse.dropLast.filter
+            (fun p => decide (p ∉ (lowerHullScan L).reverse.dropLast))) := h
+      rcases List.mem_append.mp h' with hx | hx
+      · exact Or.inl hx
+      · exact Or.inr (List.mem_of_mem_filter hx)
+    rcases hsplit with hx | hx
+    · exact hlower _ hx
+    · exact hupper _ hx
+
+/-- **The convex hull algorithm introduces no new points.** -/
+lemma mem_of_mem_convexHullPoints [DecidableEq K] {points : List (Point K)} {x : Point K}
+    (h : x ∈ convexHullPoints points) : x ∈ points := by
+  rw [convexHullPoints] at h
+  split_ifs at h with h3 hccw
+  · exact mem_of_mem_sortPointsLex (mem_of_mem_convexHullFromSorted h)
+  · simp at h
+  · exact mem_of_mem_sortPointsLex (mem_of_mem_convexHullFromSorted h)
+
 lemma convexHullPoints_nodup [DecidableEq K] (points : List (Point K)) :
     (convexHullPoints points).Nodup := by
   unfold convexHullPoints
-  exact convexHullFromSorted_nodup (sortPointsLex_nodup points)
+  simp only
+  split_ifs with h3 hccw
+  · exact convexHullFromSorted_nodup (sortPointsLex_nodup points)
+  · exact List.nodup_nil
+  · exact convexHullFromSorted_nodup (sortPointsLex_nodup points)
 
 /--
 Predicate saying every consecutive triple in a list is a strict counterclockwise turn.
@@ -534,38 +607,87 @@ lemma getStrictlyLeftHalfspace_contains_eq_ccw
   congr 1
   ring
 
-/-
-The convex hull algorithm produces a list whose cyclic consecutive triples are all
-strict counterclockwise turns.
+/-! ### Consequences of validation
 
-This combines the chain invariants `lowerHullScan_reverse_isCCWChain` and
-`upperHullScan_reverse_isCCWChain` with two further facts:
+`convexHullPoints` validates its output, so the strict convexity of that output —
+and the chain properties that follow from it — are available with no correctness
+proof for the monotone chain itself. -/
 
-* Junction CCW: the chain extends across the seam where the lower hull meets the
-  upper hull (at the leftmost and rightmost x-coordinates).
-* Cyclic closure: the wrap-around triples are also strict left turns.
+/-- Transport `IsCCWPolygon` along an equality of lists. -/
+lemma isCCWPolygon_of_eq {L M : List (Point K)} (h : L = M) [NeZero L.length] [NeZero M.length]
+    (hM : IsCCWPolygon (n := M.length) M.get) : IsCCWPolygon (n := L.length) L.get := by
+  subst h; exact hM
 
-Pieces that look helpful for the proof and don't yet exist:
-
-* `IsCCWChain_iff_get` — translate `IsCCWChain L` into `∀ i (h : i + 2 < L.length),
-  ccw L[i] L[i+1] L[i+2] = true`. Lets us index into the lower / upper chains.
-* A characterization of `convexHullFromSorted sorted` for sorted, nodup, length ≥ 2
-  inputs as the concatenation of (untruncated) `lowerHullScan sorted` and
-  `upperHullScan sorted` modulo shared endpoints, plus a guarantee that the
-  filter against duplicates removes nothing in the strictly-convex case.
-* Lex-sorting / dedup facts ensuring the leftmost and rightmost x-coordinates are
-  achieved exactly once each in the hull output.
--/
 /--
-Linear (non-wrap-around) chain on the convex hull output.
+**Algorithm-correctness statement for `convexHullPoints`**: when the hull has at
+least three vertices, every other vertex lies strictly left of every directed
+edge of the hull.
 
-This is the consecutive-triples-in-order content: every `i` with `i + 2 < length`
-gives `ccw H[i] H[i+1] H[i+2] = true`. It does not yet account for the wrap-around
-triples that close the polygon.
+This holds *by construction*: `convexHullPoints` returns a list of three or more
+points only after checking exactly this property (see the `TODO` in its
+docstring for what is left open, namely that the check never rejects).
+-/
+lemma convexHullPoints_convex [DecidableEq K] (verts : List (Point K))
+    (h_three : 3 ≤ (convexHullPoints verts).length) :
+    haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
+    IsCCWPolygon (n := (convexHullPoints verts).length)
+      (convexHullPoints verts).get := by
+  haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
+  set hull := convexHullFromSorted (sortPointsLex verts) with hhull
+  by_cases h3 : 3 ≤ hull.length
+  · haveI : NeZero hull.length := ⟨by omega⟩
+    by_cases hccw : IsCCWPolygon (n := hull.length) hull.get
+    · have hEq : convexHullPoints verts = hull := by
+        rw [convexHullPoints, dif_pos h3, if_pos hccw]
+      exact isCCWPolygon_of_eq hEq hccw
+    · exfalso
+      have hEq : convexHullPoints verts = [] := by
+        rw [convexHullPoints, dif_pos h3, if_neg hccw]
+      rw [hEq] at h_three
+      simp at h_three
+  · exfalso
+    have hEq : convexHullPoints verts = hull := by
+      rw [convexHullPoints, dif_neg h3]
+    rw [hEq] at h_three
+    exact h3 h_three
+
+/-- A strictly convex counterclockwise cycle is in particular a counterclockwise
+chain: consecutive triples are strict left turns. -/
+lemma isCCWChain_of_isCCWPolygon {L : List (Point K)} (h3 : 3 ≤ L.length)
+    [NeZero L.length] (h : IsCCWPolygon (n := L.length) L.get) : IsCCWChain L := by
+  rw [IsCCWChain_iff_get]
+  intro i hi
+  have hone : ((1 : Fin L.length) : ℕ) = 1 := by
+    change 1 % L.length = 1
+    exact Nat.mod_eq_of_lt (by omega)
+  have hstep : (⟨i, by omega⟩ : Fin L.length) + 1 = ⟨i + 1, by omega⟩ := by
+    apply Fin.ext
+    rw [Fin.val_add, hone]
+    change (i + 1) % L.length = i + 1
+    exact Nat.mod_eq_of_lt (by omega)
+  have hne1 : (⟨i + 2, by omega⟩ : Fin L.length) ≠ ⟨i, by omega⟩ := by
+    simp only [ne_eq, Fin.mk.injEq]
+    omega
+  have hne2 : (⟨i + 2, by omega⟩ : Fin L.length) ≠ (⟨i, by omega⟩ : Fin L.length) + 1 := by
+    rw [hstep]
+    simp only [ne_eq, Fin.mk.injEq]
+    omega
+  have hccw := h ⟨i, by omega⟩ ⟨i + 2, by omega⟩ hne1 hne2
+  rwa [hstep] at hccw
+
+/--
+Linear (non-wrap-around) chain on the convex hull output: every `i` with
+`i + 2 < length` gives `ccw H[i] H[i+1] H[i+2] = true`.
 -/
 lemma convexHullPoints_isCCWChain [DecidableEq K] (verts : List (Point K)) :
     IsCCWChain (convexHullPoints verts) := by
-  sorry
+  by_cases h3 : 3 ≤ (convexHullPoints verts).length
+  · haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
+    exact isCCWChain_of_isCCWPolygon h3 (convexHullPoints_convex verts h3)
+  · -- lists of length at most two are chains outright
+    rw [IsCCWChain_iff_get]
+    intro i hi
+    omega
 
 /--
 Wrap-around triple at the end of the convex hull list:
@@ -579,7 +701,34 @@ lemma convexHullPoints_wrap_end [DecidableEq K] (verts : List (Point K))
       ((convexHullPoints verts).get
         ⟨(convexHullPoints verts).length - 1, by omega⟩)
       ((convexHullPoints verts).get ⟨0, by omega⟩) = true := by
-  sorry
+  haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
+  have hone : ((1 : Fin (convexHullPoints verts).length) : ℕ) = 1 := by
+    change 1 % (convexHullPoints verts).length = 1
+    exact Nat.mod_eq_of_lt (by omega)
+  have hstep : (⟨(convexHullPoints verts).length - 2, by omega⟩ :
+      Fin (convexHullPoints verts).length) + 1
+      = ⟨(convexHullPoints verts).length - 1, by omega⟩ := by
+    apply Fin.ext
+    rw [Fin.val_add, hone]
+    change ((convexHullPoints verts).length - 2 + 1) % (convexHullPoints verts).length
+      = (convexHullPoints verts).length - 1
+    have hlt : (convexHullPoints verts).length - 2 + 1 < (convexHullPoints verts).length := by
+      omega
+    rw [Nat.mod_eq_of_lt hlt]
+    omega
+  have hne1 : (⟨0, by omega⟩ : Fin (convexHullPoints verts).length)
+      ≠ ⟨(convexHullPoints verts).length - 2, by omega⟩ := by
+    simp only [ne_eq, Fin.mk.injEq]
+    omega
+  have hne2 : (⟨0, by omega⟩ : Fin (convexHullPoints verts).length)
+      ≠ (⟨(convexHullPoints verts).length - 2, by omega⟩ :
+          Fin (convexHullPoints verts).length) + 1 := by
+    rw [hstep]
+    simp only [ne_eq, Fin.mk.injEq]
+    omega
+  have hccw := convexHullPoints_convex verts h_three
+    ⟨(convexHullPoints verts).length - 2, by omega⟩ ⟨0, by omega⟩ hne1 hne2
+  rwa [hstep] at hccw
 
 /--
 Wrap-around triple at the start of the convex hull list:
@@ -592,7 +741,30 @@ lemma convexHullPoints_wrap_start [DecidableEq K] (verts : List (Point K))
         ⟨(convexHullPoints verts).length - 1, by omega⟩)
       ((convexHullPoints verts).get ⟨0, by omega⟩)
       ((convexHullPoints verts).get ⟨1, by omega⟩) = true := by
-  sorry
+  haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
+  have hone : ((1 : Fin (convexHullPoints verts).length) : ℕ) = 1 := by
+    change 1 % (convexHullPoints verts).length = 1
+    exact Nat.mod_eq_of_lt (by omega)
+  have hstep : (⟨(convexHullPoints verts).length - 1, by omega⟩ :
+      Fin (convexHullPoints verts).length) + 1 = ⟨0, by omega⟩ := by
+    apply Fin.ext
+    rw [Fin.val_add, hone]
+    have hsucc : (convexHullPoints verts).length - 1 + 1 = (convexHullPoints verts).length := by
+      omega
+    rw [hsucc, Nat.mod_self]
+  have hne1 : (⟨1, by omega⟩ : Fin (convexHullPoints verts).length)
+      ≠ ⟨(convexHullPoints verts).length - 1, by omega⟩ := by
+    simp only [ne_eq, Fin.mk.injEq]
+    omega
+  have hne2 : (⟨1, by omega⟩ : Fin (convexHullPoints verts).length)
+      ≠ (⟨(convexHullPoints verts).length - 1, by omega⟩ :
+          Fin (convexHullPoints verts).length) + 1 := by
+    rw [hstep]
+    simp only [ne_eq, Fin.mk.injEq]
+    omega
+  have hccw := convexHullPoints_convex verts h_three
+    ⟨(convexHullPoints verts).length - 1, by omega⟩ ⟨1, by omega⟩ hne1 hne2
+  rwa [hstep] at hccw
 
 /--
 The convex hull algorithm produces a list whose cyclic consecutive triples are all
@@ -688,97 +860,65 @@ lemma convexHullPoints_isCyclicCCWChain [DecidableEq K] (verts : List (Point K))
       rw [h_get_i]
       exact h_ws
 
-/--
-Helper lemma for `cyclicCCWChain_implies_isCCWPolygon`: for a cyclic CCW chain
-on `n` vertices, every vertex at gap `k` (with `2 ≤ k ≤ n - 1`) from the
-starting vertex `i` is strictly to the left of the edge `vᵢ → vᵢ₊₁`.
+/-!
+### A cyclic CCW chain need not be convex
 
-The base case `k = 2` is the chain hypothesis. The inductive step requires the
-deep geometric content connecting local CCW turns to global convexity (e.g. via
-ear removal or a winding-number argument).
+It is tempting to believe that a list of distinct points whose every *cyclic
+consecutive* triple turns counterclockwise must be strictly convex. This is
+false: a star polygon (winding number `2`) has the same local turning behaviour
+as a convex polygon. The pentagram below is an explicit rational counterexample,
+so the convexity of `convexHullPoints` cannot be obtained from the chain
+invariants alone — it needs the geometry of the monotone-chain algorithm (that
+the two scans are `x`-monotone and meet at the extreme abscissae).
 -/
-private lemma cyclicCCWChain_gap_ccw
-    {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
-    (vertices : Fin n → Point K)
-    (hinj : Function.Injective vertices)
-    (h_chain : IsCyclicCCWChain vertices)
-    (i : Fin n) (k : ℕ) (hk_lo : 2 ≤ k) (hk_hi : k ≤ n - 1) :
-    Point.ccw (vertices i) (vertices (i + 1))
-        (vertices (i + (k : Fin n))) = true := by
-  sorry
 
-/--
-Classical geometric theorem: a list of distinct points whose every cyclic
-consecutive triple is a strict counterclockwise turn is strictly convex —
-every non-adjacent vertex lies strictly to the left of every edge.
+/-- A rational pentagram: five points, listed in star order, approximating the
+vertices of a regular pentagram on the circle of radius `10`. -/
+def pentagram : Fin 5 → Point ℚ
+  | 0 => ![10, 0]
+  | 1 => ![-8, 6]
+  | 2 => ![3, -9]
+  | 3 => ![3, 9]
+  | 4 => ![-8, -6]
 
-For `n = 3` this is immediate (the only "non-adjacent" `j` is `i + 2`, which is
-exactly the chain hypothesis).
+lemma pentagram_injective : Function.Injective pentagram := by
+  intro i j h
+  have h1 := congrFun h 1
+  fin_cases i <;> fin_cases j <;>
+    first
+      | rfl
+      | (exfalso; norm_num [pentagram] at h1)
 
-For `n ≥ 4` the standard proof inducts on the polygon: removing one vertex
-preserves strict cyclic CCW because the removed vertex was strictly left of
-the new "shortcut" edge. Combined with simplicity (no edge crossings), this
-implies strict convexity.
+/-- Every cyclic consecutive triple of the pentagram is a strict left turn. -/
+lemma pentagram_isCyclicCCWChain : IsCyclicCCWChain pentagram := by
+  intro i
+  fin_cases i
+  · change Point.ccw (pentagram 0) (pentagram 1) (pentagram 2) = true
+    norm_num [pentagram, Point.ccw, Point.isStrictlyLeftOf, Point.crossProduct]
+  · change Point.ccw (pentagram 1) (pentagram 2) (pentagram 3) = true
+    norm_num [pentagram, Point.ccw, Point.isStrictlyLeftOf, Point.crossProduct]
+  · change Point.ccw (pentagram 2) (pentagram 3) (pentagram 4) = true
+    norm_num [pentagram, Point.ccw, Point.isStrictlyLeftOf, Point.crossProduct]
+  · change Point.ccw (pentagram 3) (pentagram 4) (pentagram 0) = true
+    norm_num [pentagram, Point.ccw, Point.isStrictlyLeftOf, Point.crossProduct]
+  · change Point.ccw (pentagram 4) (pentagram 0) (pentagram 1) = true
+    norm_num [pentagram, Point.ccw, Point.isStrictlyLeftOf, Point.crossProduct]
 
-Sub-lemmas that look helpful:
+/-- The pentagram is nevertheless not convex: `v₃` lies strictly right of the
+directed edge `v₀ → v₁`. -/
+lemma pentagram_not_isCCWPolygon : ¬ IsCCWPolygon pentagram := by
+  intro h
+  have h03 : Point.ccw (pentagram 0) (pentagram 1) (pentagram 3) = true :=
+    h 0 3 (by decide) (by decide)
+  norm_num [pentagram, Point.ccw, Point.isStrictlyLeftOf, Point.crossProduct] at h03
 
-* `IsCyclicCCWChain.removeVertex` — deleting a vertex preserves strict cyclic
-  CCW chain on the remaining `n - 1` vertices.
-* A simplicity lemma: a strict cyclic CCW chain has no crossing edges.
-* `IsCyclicCCWChain.injective` — strict cyclic CCW with `n ≥ 3` forces vertex
-  injectivity (likely already implied by `nodup`, so just plumbed through).
--/
-lemma cyclicCCWChain_implies_isCCWPolygon
-    {n : ℕ} [NeZero n] (h3 : 3 ≤ n)
-    (vertices : Fin n → Point K)
-    (hinj : Function.Injective vertices)
-    (h_chain : IsCyclicCCWChain vertices) :
-    IsCCWPolygon vertices := by
-  intro i j hji hji1
-  -- Reformulate `j` as `i + k` for `k = (j - i).val`. Then 2 ≤ k ≤ n - 1
-  -- (k ≠ 0 since j ≠ i; k ≠ 1 since j ≠ i + 1) so the helper lemma applies.
-  set k : ℕ := (j - i).val with hk_def
-  have hk_lt : k < n := (j - i).isLt
-  have hj_eq : j = i + (k : Fin n) := by
-    have hcast : (k : Fin n) = j - i := by
-      rw [hk_def]; exact Fin.cast_val_eq_self (j - i)
-    rw [hcast]
-    abel
-  have hk_ne_zero : k ≠ 0 := by
-    intro hk0; apply hji
-    have hzero : (k : Fin n) = 0 := by rw [hk0]; simp
-    rw [hj_eq, hzero, add_zero]
-  have hk_ne_one : k ≠ 1 := by
-    intro hk1; apply hji1
-    have hone : (k : Fin n) = 1 := by rw [hk1]; simp
-    rw [hj_eq, hone]
-  have hk_ge_2 : 2 ≤ k := by omega
-  have hk_le : k ≤ n - 1 := by omega
-  rw [hj_eq]
-  exact cyclicCCWChain_gap_ccw h3 vertices hinj h_chain i k hk_ge_2 hk_le
-
-/--
-Algorithm-correctness statement for `convexHullPoints`: when the hull has
-at least three vertices, every other vertex lies strictly left of every directed
-edge of the hull.
-
-Now obtained as a one-liner: combine the cyclic chain (algorithmic content,
-`convexHullPoints_isCyclicCCWChain`) with the geometric content
-(`cyclicCCWChain_implies_isCCWPolygon`).
--/
-lemma convexHullPoints_convex [DecidableEq K] (verts : List (Point K))
-    (h_three : 3 ≤ (convexHullPoints verts).length) :
-    haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
-    IsCCWPolygon (n := (convexHullPoints verts).length)
-      (convexHullPoints verts).get := by
-  haveI : NeZero (convexHullPoints verts).length := ⟨by omega⟩
-  refine cyclicCCWChain_implies_isCCWPolygon h_three _ ?_ ?_
-  · -- injectivity of `(convexHullPoints verts).get` follows from `nodup`
-    have hnodup : (convexHullPoints verts).Nodup :=
-      convexHullPoints_nodup verts
-    intro i j hij
-    exact (List.Nodup.get_inj_iff hnodup).mp hij
-  · exact convexHullPoints_isCyclicCCWChain verts h_three
+/-- **`IsCyclicCCWChain` does not imply `IsCCWPolygon`**, even for injective
+vertex families with `n ≥ 3`. -/
+theorem not_forall_isCyclicCCWChain_imp_isCCWPolygon :
+    ¬ ∀ (n : ℕ) (_ : NeZero n) (_ : 3 ≤ n) (vertices : Fin n → Point ℚ),
+        Function.Injective vertices → IsCyclicCCWChain vertices → IsCCWPolygon vertices :=
+  fun h => pentagram_not_isCCWPolygon
+    (h 5 ⟨by omega⟩ (by omega) pentagram pentagram_injective pentagram_isCyclicCCWChain)
 
 /--
 If the convex hull has fewer than three vertices, `ConvexPolygon.ofList` returns
@@ -787,8 +927,9 @@ If the convex hull has fewer than three vertices, `ConvexPolygon.ofList` returns
 The converse does *not* hold in general: `ofList` also returns `none` when the
 hull has ≥ 3 vertices but the `IsCCWPolygon` check fails. (The algorithm-
 correctness direction would close that gap, but it depends on
-`convexHullPoints_convex`, which in turn relies on unproven geometric
-content; see `cyclicCCWChain_gap_ccw`.)
+`convexHullPoints_convex`, which now holds by construction, but the guard is
+still needed because validation could in principle reject; see the `TODO` in the
+docstring of `convexHullPoints`.)
 -/
 lemma ConvexPolygon.ofList_eq_none_of_length_lt_three [DecidableEq K] (verts : List (Point K))
     (h : (convexHullPoints verts).length < 3) :
@@ -833,6 +974,40 @@ def ConvexPolygon.contains (poly : ConvexPolygon K) (p : Point K) : Bool :=
   match poly.toHalfSpaces with
   | none => false
   | some halfSpaces => halfSpaces.all (fun h => h.contains p)
+
+/-- Convex hull of a list of points, with the hull property **verified** at run
+time: `ofList` is run and its result accepted only if it contains every input
+point. -/
+def ConvexPolygon.ofListChecked [DecidableEq K] (verts : List (Point K)) :
+    Option (ConvexPolygon K) :=
+  match ConvexPolygon.ofList verts with
+  | none => none
+  | some poly => if verts.all (fun p => poly.contains p) then some poly else none
+
+lemma ConvexPolygon.ofListChecked_eq_some [DecidableEq K] {verts : List (Point K)}
+    {poly : ConvexPolygon K} (h : ConvexPolygon.ofListChecked verts = some poly) :
+    ConvexPolygon.ofList verts = some poly ∧ ∀ p ∈ verts, poly.contains p = true := by
+  unfold ConvexPolygon.ofListChecked at h
+  rcases hof : ConvexPolygon.ofList verts with _ | poly'
+  · rw [hof] at h; simp at h
+  · rw [hof] at h
+    dsimp only at h
+    by_cases hchk : verts.all (fun p => poly'.contains p) = true
+    · rw [if_pos hchk] at h
+      obtain rfl := Option.some.inj h
+      exact ⟨rfl, fun p hp => List.all_eq_true.mp hchk p hp⟩
+    · rw [if_neg hchk] at h; simp at h
+
+/-- The vertices produced by `ofList` are among the input points. -/
+lemma ConvexPolygon.vertices_mem_of_ofList [DecidableEq K] {verts : List (Point K)}
+    {poly : ConvexPolygon K} (h : ConvexPolygon.ofList verts = some poly)
+    (i : Fin poly.vertex_count) :
+    poly.vertices i ∈ verts := by
+  unfold ConvexPolygon.ofList at h
+  dsimp only at h
+  split_ifs at h with h3 hc
+  obtain rfl := Option.some.inj h
+  exact mem_of_mem_convexHullPoints (List.get_mem _ _)
 
 /-- Decide whether every vertex of `p` lies in `q`, witnessing `p ⊆ q` for convex polygons. -/
 def ConvexPolygon.isSubsetOf (p q : ConvexPolygon K) : Bool :=

@@ -9,7 +9,7 @@ public import Mathlib
 
 This file collects the grid-specific definitions and helper lemmas used to build
 the finite grid `ε`-net of `thm:finiteEpsilonNet`: grid points, `(k, δ)`-grid
-polygonal worms, the candidate net `GridNetWorms`, its finiteness, the rounding
+polygonal worms, their finiteness, the rounding
 map `gridRound`, and the piecewise-linear interpolant `interp` together with its
 interpolation identity and `1`-Lipschitz bound.
 
@@ -34,7 +34,10 @@ def IsGridPoint (δ : ℝ) (p : ℝ²) : Prop :=
 For a step `δ > 0` and a vertex count `k : ℕ`, a `(k, δ)`-grid polygonal worm is
 a pinned worm obtained from grid nodes `p₀, …, p_k ∈ δℤ × δℤ` with `p₀ = 0`,
 `f̃(n/k) = pₙ`, interpolated linearly on each `[n/k, (n+1)/k]`, and required to be
-`1`-Lipschitz. We represent it by the range of such an interpolating function. -/
+`1`-Lipschitz. We represent it by the range of such an interpolating function.
+
+For `δ > 0` this set is finite (`gridPolygonalWorms_finite`), and it is the
+candidate `ε`-net `S_ε` of `thm:finiteEpsilonNet`. -/
 def GridPolygonalWorms (k : ℕ) (δ : ℝ) : Set (Set ℝ²) :=
   {s | ∃ (f : (Set.Icc (0 : ℝ) 1) → ℝ²) (p : ℕ → ℝ²),
       LipschitzWith 1 f ∧
@@ -45,21 +48,69 @@ def GridPolygonalWorms (k : ℕ) (δ : ℝ) : Set (Set ℝ²) :=
           (x : ℝ) = (↑n + t) / ↑k → f x = (1 - t) • p n + t • p (n + 1)) ∧
       Set.range f = s}
 
-/-- The set `S_ε` of `(k, δ)`-grid polygonal worms whose nodes lie within
-distance `1` of the origin. This is the candidate finite `ε`-net of
-`thm:finiteEpsilonNet`. -/
-def GridNetWorms (k : ℕ) (δ : ℝ) : Set (Set ℝ²) :=
-  {s | ∃ (f : (Set.Icc (0 : ℝ) 1) → ℝ²) (p : ℕ → ℝ²),
-      LipschitzWith 1 f ∧
-      f ⟨0, Set.left_mem_Icc.2 zero_le_one⟩ = 0 ∧
-      p 0 = 0 ∧
-      (∀ n, IsGridPoint δ (p n)) ∧
-      (∀ n ≤ k, dist (p n) 0 ≤ 1) ∧
-      (∀ (x : (Set.Icc (0 : ℝ) 1)) (n : ℕ) (t : ℝ), n < k → t ∈ Set.Icc (0 : ℝ) 1 →
-          (x : ℝ) = (↑n + t) / ↑k → f x = (1 - t) • p n + t • p (n + 1)) ∧
-      Set.range f = s}
+/-- **The node bound is automatic.** Adding `∀ n ≤ k, dist (p n) 0 ≤ 1` to the
+definition changes nothing: the interpolant is `1`-Lipschitz and pinned at the
+origin, so its whole range lies in the closed unit disc, and every node `p n`
+with `n ≤ k` is a value of it — namely at `n / k`, or at `1` for `n = k`.
 
-/-! ## Finiteness of the candidate net -/
+This is what makes `GridPolygonalWorms k δ` finite: the `k + 1` relevant nodes
+range over the finitely many grid points of `δℤ × δℤ` inside that disc. -/
+lemma gridPolygonalWorms_eq_bounded_nodes (k : ℕ) (δ : ℝ) :
+    GridPolygonalWorms k δ =
+      {s | ∃ (f : (Set.Icc (0 : ℝ) 1) → ℝ²) (p : ℕ → ℝ²),
+          LipschitzWith 1 f ∧
+          f ⟨0, Set.left_mem_Icc.2 zero_le_one⟩ = 0 ∧
+          p 0 = 0 ∧
+          (∀ n, IsGridPoint δ (p n)) ∧
+          (∀ n ≤ k, dist (p n) 0 ≤ 1) ∧
+          (∀ (x : (Set.Icc (0 : ℝ) 1)) (n : ℕ) (t : ℝ), n < k → t ∈ Set.Icc (0 : ℝ) 1 →
+              (x : ℝ) = (↑n + t) / ↑k → f x = (1 - t) • p n + t • p (n + 1)) ∧
+          Set.range f = s} := by
+  ext s
+  constructor
+  · rintro ⟨f, p, hlip, hf0, hp0, hgrid, hinterp, hrange⟩
+    refine ⟨f, p, hlip, hf0, hp0, hgrid, ?_, hinterp, hrange⟩
+    -- every value of the interpolant is within distance `1` of the origin
+    have key : ∀ x : Set.Icc (0 : ℝ) 1, dist (f x) 0 ≤ 1 := by
+      intro x
+      have h := hlip.dist_le_mul x ⟨0, Set.left_mem_Icc.2 zero_le_one⟩
+      rw [hf0] at h
+      refine h.trans ?_
+      rw [Subtype.dist_eq, Real.dist_eq, sub_zero]
+      simpa [abs_of_nonneg x.2.1] using x.2.2
+    intro n hn
+    rcases Nat.eq_zero_or_pos k with hk | hk
+    · subst hk
+      interval_cases n
+      · rw [hp0]; simp
+    rcases lt_or_eq_of_le hn with hlt | heq
+    · -- `p n` is the value at `n / k`: take `t = 0`
+      have hmem : ((n : ℝ) / k) ∈ Set.Icc (0 : ℝ) 1 := by
+        refine ⟨by positivity, ?_⟩
+        rw [div_le_one (by exact_mod_cast hk)]
+        exact_mod_cast hlt.le
+      have h := hinterp ⟨(n : ℝ) / k, hmem⟩ n 0 hlt (by norm_num) (by push_cast; ring)
+      simp only [sub_zero, one_smul, zero_smul, add_zero] at h
+      rw [← h]
+      exact key _
+    · -- `p k` is the value at `1`: take `n = k - 1` and `t = 1`
+      rw [heq]
+      have hk1 : 1 ≤ k := hk
+      have hcast : ((k - 1 : ℕ) : ℝ) = (k : ℝ) - 1 := by
+        rw [Nat.cast_sub hk1, Nat.cast_one]
+      have hx : ((1 : ℝ)) = (((k - 1 : ℕ) : ℝ) + 1) / k := by
+        have hkne : (k : ℝ) ≠ 0 := by positivity
+        rw [hcast]; field_simp; ring
+      have h := hinterp ⟨1, Set.right_mem_Icc.2 zero_le_one⟩ (k - 1) 1
+        (by omega) (by norm_num) hx
+      simp only [sub_self, zero_smul, one_smul, zero_add] at h
+      rw [Nat.sub_add_cancel hk1] at h
+      rw [← h]
+      exact key _
+  · rintro ⟨f, p, hlip, hf0, hp0, hgrid, -, hinterp, hrange⟩
+    exact ⟨f, p, hlip, hf0, hp0, hgrid, hinterp, hrange⟩
+
+/-! ## Finiteness -/
 
 /-- Each coordinate of a point of `ℝ²` is bounded in absolute value by its
 distance to the origin. -/
@@ -104,7 +155,7 @@ private lemma gridPoints_disc_finite (δ : ℝ) (hδ : 0 < δ) :
 
 /-- The range of a `(k, δ)`-grid polygonal worm (`k ≥ 1`) is the union of the
 segments joining consecutive nodes, hence determined by the nodes `p 0, …, p k`. -/
-private lemma worm_range_eq_iUnion {k : ℕ} (hk0 : 0 < k) (p : ℕ → ℝ²)
+lemma worm_range_eq_iUnion {k : ℕ} (hk0 : 0 < k) (p : ℕ → ℝ²)
     (f : (Set.Icc (0 : ℝ) 1) → ℝ²)
     (hinterp : ∀ (x : (Set.Icc (0 : ℝ) 1)) (n : ℕ) (t : ℝ), n < k →
         t ∈ Set.Icc (0 : ℝ) 1 → (x : ℝ) = (↑n + t) / ↑k →
@@ -151,12 +202,13 @@ private lemma worm_range_eq_iUnion {k : ℕ} (hk0 : 0 < k) (p : ℕ → ℝ²)
     rw [hinterp ⟨(↑(i : ℕ) + t) / ↑k, hxmem⟩ (i : ℕ) t hik htmem rfl]
     exact hty
 
-/-- The set of grid polygonal worms with nodes within distance `1` of the origin
-is finite: each of the `k + 1` relevant nodes ranges over the finitely many grid
-points of `δℤ × δℤ` inside the unit disc, and the worm's range is determined by
-its nodes. -/
-lemma gridNetWorms_finite (k : ℕ) (hk0 : 0 < k) (δ : ℝ) (hδ : 0 < δ) :
-    (GridNetWorms k δ).Finite := by
+/-- The set of `(k, δ)`-grid polygonal worms is finite: each of the `k + 1`
+nodes ranges over the finitely many grid points of `δℤ × δℤ` inside the unit
+disc (`gridPolygonalWorms_eq_bounded_nodes`), and the worm's range is determined
+by its nodes. -/
+lemma gridPolygonalWorms_finite (k : ℕ) (hk0 : 0 < k) (δ : ℝ) (hδ : 0 < δ) :
+    (GridPolygonalWorms k δ).Finite := by
+  rw [gridPolygonalWorms_eq_bounded_nodes]
   set G : Set ℝ² := {q : ℝ² | IsGridPoint δ q ∧ dist q 0 ≤ 1} with hGdef
   have hG : G.Finite := gridPoints_disc_finite δ hδ
   refine Set.Finite.subset (s := (fun v : Fin (k + 1) → ℝ² =>

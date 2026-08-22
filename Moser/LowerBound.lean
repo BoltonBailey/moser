@@ -34,19 +34,20 @@ The chain is:
    says: every *pinned small cover* — a convex set of area at most `areaThreshold`
    containing the unshifted `InitialWorm` hull and covering every worm up to direct
    isometry — must contain (unshifted) some polygon of `s`.
-3. **Preservation** (`WorkingSet.Sound.bigSetRemoval`, `.supersetRemoval`,
-   `.wormAdding`): the working-set operations preserve soundness. The `wormAdding`
-   case is the mathematical crux of the whole development; see its docstring.
+3. **Preservation** (`WorkingSet.Sound.bigSetRemoval`, `.supersetRemoval`): the
+   cleanup operations preserve soundness. The remaining case, `wormAdding`, is the
+   mathematical crux of the whole development and is carried as an explicit
+   hypothesis `WorkingSet.WormAddingSound`; see its docstring.
 4. **Termination ⇒ bound** (`Moser.areaThreshold_le_moserCoverNumber_of_run`): if a
    sound working set becomes empty, no pinned small cover exists, and after
    un-pinning (`Moser.exists_pinnedSmallCover`) and passing from placement covers to
    convex covers (`Moser.le_moserCoverNumber_of_forall_convex_cover`) the record
    bound `areaThreshold ≤ moserCoverNumber` follows.
 
-The final target is `Moser.areaThreshold_le_moserCoverNumber`, which awaits a
-certificate: a concrete terminating run of the algorithm, i.e. a proof of
-`∃ s, s.Sound ∧ s.polygons = []` obtained by iterating `addWormAndCleanup` from
-`WorkingSet.initial`.
+The record bound itself is not asserted anywhere: it awaits a certificate, i.e. a
+proof of `∃ s, s.Sound ∧ s.polygons = []` obtained by iterating
+`addWormAndCleanup` from `WorkingSet.initial`, at which point
+`Moser.areaThreshold_le_moserCoverNumber_of_run` delivers it.
 
 Deliberately **not** on this path: the planar Steiner formula and `approxAlgorithm`
 in `Moser.Real.CompactnessOutline` (upper-bound/approximation track) and the
@@ -73,6 +74,11 @@ layer is judged. -/
 noncomputable def realHull (poly : ConvexPolygon ℚ) : Set ℝ² :=
   convexHull ℝ (Set.range fun i => Point.toEuclidean (poly.vertices i))
 
+/-- Unfolding lemma for `realHull`, usable from other modules. -/
+lemma realHull_eq (poly : ConvexPolygon ℚ) :
+    poly.realHull = convexHull ℝ (Set.range fun i => Point.toEuclidean (poly.vertices i)) := by
+  simp [ConvexPolygon.realHull]
+
 /-- The real region of a rational convex polygon is convex. -/
 theorem convex_realHull (poly : ConvexPolygon ℚ) : Convex ℝ poly.realHull :=
   convex_convexHull ℝ _
@@ -89,17 +95,20 @@ polyhedral duality, via fan triangulation from vertex `0` with explicit
 barycentric coordinates on each triangle. -/
 
 /-- Cross product of two vectors of the real plane. -/
-private def rcross (u v : ℝ²) : ℝ := u 0 * v 1 - u 1 * v 0
+def rcross (u v : ℝ²) : ℝ := u 0 * v 1 - u 1 * v 0
+
+/-- Unfolding lemma for `rcross`, usable from other modules. -/
+lemma rcross_def (u v : ℝ²) : rcross u v = u 0 * v 1 - u 1 * v 0 := by simp [rcross]
 
 /-- Twice the signed area of a triangle is invariant under cyclic rotation of
 its vertices. -/
-private lemma rcross_cycle (a b c : ℝ²) :
+lemma rcross_cycle (a b c : ℝ²) :
     rcross (b - a) (c - a) = rcross (c - b) (a - b) := by
   simp only [rcross, PiLp.sub_apply]
   ring
 
 /-- Reversing the base edge negates the side of the test point. -/
-private lemma rcross_flip (a b v : ℝ²) :
+lemma rcross_flip (a b v : ℝ²) :
     rcross (a - b) (v - b) = -rcross (b - a) (v - a) := by
   simp only [rcross, PiLp.sub_apply]
   ring
@@ -156,7 +165,7 @@ private lemma mem_convexHull_triangle {a b c v : ℝ²}
 /-- **Fan-induction hull membership**: a point weakly to the left of every
 directed edge of a vertex cycle `w 0, …, w (n-1)` whose fan triangles from
 `w 0` are positively oriented lies in the convex hull of the vertices. -/
-private lemma mem_convexHull_fan (w : ℕ → ℝ²) (v : ℝ²) : ∀ n, 3 ≤ n →
+lemma mem_convexHull_fan (w : ℕ → ℝ²) (v : ℝ²) : ∀ n, 3 ≤ n →
     (∀ k, k + 1 < n → 0 ≤ rcross (w (k + 1) - w k) (v - w k)) →
     0 ≤ rcross (w 0 - w (n - 1)) (v - w (n - 1)) →
     (∀ k, 1 ≤ k → k + 2 ≤ n → 0 < rcross (w (k + 1) - w k) (w 0 - w k)) →
@@ -346,6 +355,33 @@ theorem realHull_subset_realHull {p q : ConvexPolygon ℚ}
   exact h _ (by
     rw [ConvexPolygon.vertex_list]
     exact List.mem_map.mpr ⟨i, List.mem_finRange i, rfl⟩)
+
+/-! ### A verified convex hull
+
+`convexHullPoints` is not proved correct (see `convexHullPoints_convex` in
+`Moser.Geometry.Polygon`; the cyclic-chain invariant is not enough, by the
+pentagram counterexample). Correctness can nevertheless be obtained *per call*
+by checking, after the fact, that the polygon produced contains every input
+point: together with the fact that the algorithm introduces no new points
+(`mem_of_mem_convexHullPoints`) this pins the real region down exactly. -/
+
+/-- **Correctness of the verified convex hull.** When `ofListChecked` succeeds,
+the real region of the resulting polygon is exactly the convex hull of the input
+points: it contains them because the run-time check verified it, and it is
+contained in their hull because the algorithm returns only input points. -/
+theorem realHull_ofListChecked {verts : List (Point ℚ)}
+    {poly : ConvexPolygon ℚ} (h : ofListChecked verts = some poly) :
+    poly.realHull = convexHull ℝ (Point.toEuclidean '' {p | p ∈ verts}) := by
+  obtain ⟨hof, hcontains⟩ := ofListChecked_eq_some h
+  refine Set.Subset.antisymm ?_ ?_
+  · rw [ConvexPolygon.realHull]
+    refine convexHull_min ?_ (convex_convexHull ℝ _)
+    rintro _ ⟨i, rfl⟩
+    exact subset_convexHull ℝ _
+      ⟨poly.vertices i, vertices_mem_of_ofList hof i, rfl⟩
+  · refine convexHull_min ?_ poly.convex_realHull
+    rintro _ ⟨v, hv, rfl⟩
+    exact mem_realHull_of_contains (hcontains v hv)
 
 /-! ### Volume of a triangle
 
@@ -539,7 +575,7 @@ private lemma convexHull_triangle_eq_image (a b c : ℝ²) :
 
 /-- **Volume of a triangle**: half the absolute cross product of its edge
 vectors. -/
-private lemma volume_triangle (a b c : ℝ²) :
+lemma volume_triangle (a b c : ℝ²) :
     volume (convexHull ℝ ({a, b, c} : Set ℝ²))
       = ENNReal.ofReal (|rcross (b - a) (c - a)| / 2) := by
   classical
@@ -616,7 +652,7 @@ private lemma fan_diag_pos (w : ℕ → ℝ²) (n : ℕ)
 
 /-- A closed half-plane is convex, so it absorbs the convex hull of any set of
 points it contains. -/
-private lemma convexHull_subset_halfplane {S : Set ℝ²} (d w₀ : ℝ²)
+lemma convexHull_subset_halfplane {S : Set ℝ²} (d w₀ : ℝ²)
     (h : ∀ y ∈ S, 0 ≤ rcross d (y - w₀)) :
     convexHull ℝ S ⊆ {y : ℝ² | 0 ≤ rcross d (y - w₀)} := by
   refine convexHull_min h ?_
@@ -681,11 +717,11 @@ private lemma mem_iUnion_fan (w : ℕ → ℝ²) (v : ℝ²) : ∀ n, 3 ≤ n �
           rwa [hm1]
         exact Set.mem_biUnion (by simp only [Finset.coe_Ico, Set.mem_Ico]; omega) hmem'
 
-private lemma rcross_zero_right (u : ℝ²) : rcross u 0 = 0 := by
+lemma rcross_zero_right (u : ℝ²) : rcross u 0 = 0 := by
   simp [rcross]
 
 /-- Any line in the plane is a null set: it is a proper affine subspace. -/
-private lemma volume_line (w d : ℝ²) (hd : d ≠ 0) :
+lemma volume_line (w d : ℝ²) (hd : d ≠ 0) :
     volume {y : ℝ² | rcross d (y - w) = 0} = 0 := by
   classical
   set f : ℝ² →ₗ[ℝ] ℝ :=
@@ -1280,6 +1316,279 @@ theorem initialWorm_isWormHull : InitialWorm.IsWormHull := by
       change Point.toEuclidean ![0, 1 / 2] = _
       norm_num [Point.toEuclidean]
 
+/-! ## Points outside `LocationRange` exceed the area threshold
+
+`LocationRange` is the hexagon of points that may be added to `InitialWorm`
+without pushing the area of the convex hull above `areaThreshold`. The theorem
+below is its defining property, proved in the real plane: for each of the six
+directed edges of the hexagon, a point beyond that edge spans, together with one
+or two triangles of `InitialWorm`, an area exceeding the threshold. -/
+
+section OutsideLocationRange
+
+open ConvexPolygon
+
+lemma toEuclidean_apply (q : Point ℚ) (i : Fin 2) :
+    Point.toEuclidean q i = ((q i : ℚ) : ℝ) := by
+  fin_cases i <;> simp [Point.toEuclidean]
+
+/-- A triangle spanned by three points of a convex set bounds its volume. -/
+lemma volume_triangle_le {S : Set ℝ²} (hS : Convex ℝ S) {a b c : ℝ²}
+    (ha : a ∈ S) (hb : b ∈ S) (hc : c ∈ S) :
+    ENNReal.ofReal (|rcross (b - a) (c - a)| / 2) ≤ volume S := by
+  rw [← volume_triangle]
+  refine measure_mono (convexHull_min ?_ hS)
+  intro z hz
+  simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+  rcases hz with rfl | rfl | rfl <;> assumption
+
+/-- Two triangles of a convex set separated by a line bound its volume
+additively: they meet only inside the line, which is null. -/
+lemma volume_two_triangles_le {S : Set ℝ²} (hS : Convex ℝ S)
+    {a b c a' b' c' d w : ℝ²} (hd : d ≠ 0)
+    (h1 : ∀ z ∈ ({a, b, c} : Set ℝ²), 0 ≤ rcross d (z - w))
+    (h2 : ∀ z ∈ ({a', b', c'} : Set ℝ²), rcross d (z - w) ≤ 0)
+    (ha : a ∈ S) (hb : b ∈ S) (hc : c ∈ S)
+    (ha' : a' ∈ S) (hb' : b' ∈ S) (hc' : c' ∈ S) :
+    ENNReal.ofReal (|rcross (b - a) (c - a)| / 2)
+        + ENNReal.ofReal (|rcross (b' - a') (c' - a')| / 2) ≤ volume S := by
+  have hneg : ∀ u v : ℝ², rcross (-u) v = -rcross u v := by
+    intro u v; simp only [rcross, PiLp.neg_apply]; ring
+  have hT1 : convexHull ℝ ({a, b, c} : Set ℝ²) ⊆ {z : ℝ² | 0 ≤ rcross d (z - w)} :=
+    convexHull_subset_halfplane d w h1
+  have hT2 : convexHull ℝ ({a', b', c'} : Set ℝ²) ⊆ {z : ℝ² | rcross d (z - w) ≤ 0} := by
+    have := convexHull_subset_halfplane (-d) w (by
+      intro z hz; rw [hneg]; linarith [h2 z hz])
+    intro z hz
+    have hz' := this hz
+    simp only [Set.mem_setOf_eq, hneg] at hz' ⊢
+    linarith
+  have hdisj : MeasureTheory.AEDisjoint volume (convexHull ℝ ({a, b, c} : Set ℝ²))
+      (convexHull ℝ ({a', b', c'} : Set ℝ²)) := by
+    refine measure_mono_null (fun z hz => ?_) (volume_line w d hd)
+    obtain ⟨hz1, hz2⟩ := hz
+    have e1 := hT1 hz1
+    have e2 := hT2 hz2
+    simp only [Set.mem_setOf_eq] at e1 e2 ⊢
+    linarith
+  have hmeas2 : NullMeasurableSet (convexHull ℝ ({a', b', c'} : Set ℝ²)) volume :=
+    ((Set.Finite.isCompact_convexHull ℝ
+      (((Set.finite_singleton c').insert b').insert a')).isClosed.measurableSet).nullMeasurableSet
+  have hsub : convexHull ℝ ({a, b, c} : Set ℝ²) ∪ convexHull ℝ ({a', b', c'} : Set ℝ²) ⊆ S := by
+    refine Set.union_subset (convexHull_min ?_ hS) (convexHull_min ?_ hS) <;>
+      · intro z hz
+        simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+        rcases hz with rfl | rfl | rfl <;> assumption
+  calc ENNReal.ofReal (|rcross (b - a) (c - a)| / 2)
+        + ENNReal.ofReal (|rcross (b' - a') (c' - a')| / 2)
+      = volume (convexHull ℝ ({a, b, c} : Set ℝ²))
+          + volume (convexHull ℝ ({a', b', c'} : Set ℝ²)) := by
+        rw [volume_triangle, volume_triangle]
+    _ = volume (convexHull ℝ ({a, b, c} : Set ℝ²) ∪ convexHull ℝ ({a', b', c'} : Set ℝ²)) :=
+        (measure_union₀ hmeas2 hdisj).symm
+    _ ≤ volume S := measure_mono hsub
+
+private lemma initialWorm_vertex_list :
+    InitialWorm.vertex_list = [![0, 0], ![1 / 2, 0], ![0, 1 / 2]] := rfl
+
+/-- **Defining property of `LocationRange`.** If `p` lies outside the hexagon
+`LocationRange`, then the area of the convex hull of `p` together with the
+vertices of `InitialWorm` strictly exceeds `areaThreshold`. -/
+theorem lt_volume_convexHull_insert_initialWorm {p : Point ℚ}
+    (hp : LocationRange.contains p = false) :
+    ENNReal.ofReal ((areaThreshold : ℚ) : ℝ)
+      < volume (convexHull ℝ
+          (Point.toEuclidean '' {q : Point ℚ | q ∈ p :: InitialWorm.vertex_list})) := by
+  set x : ℝ := ((p 0 : ℚ) : ℝ) with hxdef
+  set y : ℝ := ((p 1 : ℚ) : ℝ) with hydef
+  set S : Set ℝ² :=
+    convexHull ℝ (Point.toEuclidean '' {q : Point ℚ | q ∈ p :: InitialWorm.vertex_list}) with hSdef
+  have hconv : Convex ℝ S := convex_convexHull ℝ _
+  have hmemG : ∀ q : Point ℚ, q ∈ p :: InitialWorm.vertex_list → Point.toEuclidean q ∈ S :=
+    fun q hq => subset_convexHull ℝ _ ⟨q, hq, rfl⟩
+  set O : ℝ² := Point.toEuclidean ![0, 0] with hOdef
+  set V1 : ℝ² := Point.toEuclidean ![1 / 2, 0] with hV1def
+  set V2 : ℝ² := Point.toEuclidean ![0, 1 / 2] with hV2def
+  set P : ℝ² := Point.toEuclidean p with hPdef
+  have hP : P ∈ S := hmemG p (by simp)
+  have hO : O ∈ S := hmemG _ (by simp [initialWorm_vertex_list])
+  have hV1 : V1 ∈ S := hmemG _ (by simp [initialWorm_vertex_list])
+  have hV2 : V2 ∈ S := hmemG _ (by simp [initialWorm_vertex_list])
+  have hO0 : O 0 = 0 := by rw [hOdef, toEuclidean_apply]; norm_num
+  have hO1 : O 1 = 0 := by rw [hOdef, toEuclidean_apply]; norm_num
+  have hV10 : V1 0 = 1 / 2 := by rw [hV1def, toEuclidean_apply]; norm_num
+  have hV11 : V1 1 = 0 := by rw [hV1def, toEuclidean_apply]; norm_num
+  have hV20 : V2 0 = 0 := by rw [hV2def, toEuclidean_apply]; norm_num
+  have hV21 : V2 1 = 1 / 2 := by rw [hV2def, toEuclidean_apply]; norm_num
+  have hP0 : P 0 = x := by rw [hPdef, toEuclidean_apply]
+  have hP1 : P 1 = y := by rw [hPdef, toEuclidean_apply]
+  -- numerical constants
+  have hthr : ((areaThreshold : ℚ) : ℝ) = 232240 / 1000000 := by
+    rw [areaThreshold]; norm_num
+  have hoff : ((offset : ℚ) : ℝ) = 928960 / 1000000 := by
+    rw [offset, areaThreshold]; norm_num
+  have hnar : ((narrowOffset : ℚ) : ℝ) = 428960 / 1000000 := by
+    rw [narrowOffset, offset, areaThreshold]; norm_num
+  -- from `contains p = false`, one of the six half-space tests fails
+  have hdisj : offset < p 0 ∨ offset < p 0 + p 1 ∨ offset < p 1 ∨
+      p 0 < -narrowOffset ∨ p 0 + p 1 < -narrowOffset ∨ p 1 < -narrowOffset := by
+    by_contra hcon
+    push Not at hcon
+    obtain ⟨c1, c2, c3, c4, c5, c6⟩ := hcon
+    rw [Bool.eq_false_iff] at hp
+    exact hp ((locationRange_contains_iff p).mpr ⟨c1, c2, c3, c4, c5, c6⟩)
+  -- conclude from a real lower bound on the area
+  have hfinal : ∀ A : ℝ, ((areaThreshold : ℚ) : ℝ) < A → ENNReal.ofReal A ≤ volume S →
+      ENNReal.ofReal ((areaThreshold : ℚ) : ℝ) < volume S := by
+    intro A hA hle
+    refine lt_of_lt_of_le ?_ hle
+    exact (ENNReal.ofReal_lt_ofReal_iff (by rw [hthr] at hA; linarith)).mpr hA
+  rcases hdisj with hA | hB | hC | hD | hE | hF
+  · -- `x > offset`: the triangle `O, P, V₂` already has area `x/4`
+    have hx : 928960 / 1000000 < x := by rw [hxdef, ← hoff]; exact_mod_cast hA
+    refine hfinal (x / 4) (by rw [hthr]; linarith) ?_
+    have hval : rcross (P - O) (V2 - O) = x / 2 := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV20, hV21, hP0, hP1]; ring
+    have hbound := volume_triangle_le hconv hO hP hV2
+    rw [hval, abs_of_nonneg (by linarith : (0:ℝ) ≤ x / 2)] at hbound
+    calc ENNReal.ofReal (x / 4) = ENNReal.ofReal (x / 2 / 2) := by congr 1; ring
+      _ ≤ volume S := hbound
+  · -- `x + y > offset`: `InitialWorm` plus the triangle beyond its hypotenuse
+    have hxy : 928960 / 1000000 < x + y := by
+      rw [hxdef, hydef, ← hoff]; exact_mod_cast hB
+    refine hfinal ((x + y) / 4) (by rw [hthr]; linarith) ?_
+    have hval1 : rcross (V1 - O) (V2 - O) = 1 / 4 := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hV20, hV21]; ring
+    have hval2 : rcross (V2 - V1) (P - V1) = 1 / 4 - (x + y) / 2 := by
+      simp only [rcross, PiLp.sub_apply, hV10, hV11, hV20, hV21, hP0, hP1]; ring
+    have hsep1 : ∀ z ∈ ({O, V1, V2} : Set ℝ²), 0 ≤ rcross (V2 - V1) (z - V1) := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl | rfl <;>
+        · simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hV20, hV21]; norm_num
+    have hsep2 : ∀ z ∈ ({V1, V2, P} : Set ℝ²), rcross (V2 - V1) (z - V1) ≤ 0 := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl | rfl <;>
+        · simp only [rcross, PiLp.sub_apply, hV10, hV11, hV20, hV21, hP0, hP1]
+          norm_num
+          try linarith
+    have hdne : V2 - V1 ≠ 0 := by
+      intro hzero
+      have h0 : (V2 - V1) 0 = 0 := by rw [hzero]; simp
+      rw [PiLp.sub_apply, hV20, hV10] at h0
+      norm_num at h0
+    have hbound := volume_two_triangles_le hconv hdne hsep1 hsep2 hO hV1 hV2 hV1 hV2 hP
+    rw [hval1, hval2, abs_of_nonneg (by norm_num : (0:ℝ) ≤ (1:ℝ)/4),
+      abs_of_nonpos (by linarith : (1:ℝ)/4 - (x + y)/2 ≤ 0)] at hbound
+    refine le_trans (le_of_eq ?_) hbound
+    rw [← ENNReal.ofReal_add (by norm_num) (by linarith)]
+    congr 1
+    ring
+  · -- `y > offset`
+    have hy : 928960 / 1000000 < y := by rw [hydef, ← hoff]; exact_mod_cast hC
+    refine hfinal (y / 4) (by rw [hthr]; linarith) ?_
+    have hval : rcross (V1 - O) (P - O) = y / 2 := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hP0, hP1]; ring
+    have hbound := volume_triangle_le hconv hO hV1 hP
+    rw [hval, abs_of_nonneg (by linarith : (0:ℝ) ≤ y / 2)] at hbound
+    calc ENNReal.ofReal (y / 4) = ENNReal.ofReal (y / 2 / 2) := by congr 1; ring
+      _ ≤ volume S := hbound
+  · -- `x < -narrowOffset`: `InitialWorm` plus the triangle to the left of the `y`-axis
+    have hx : x < -(428960 / 1000000) := by rw [hxdef, ← hnar]; exact_mod_cast hD
+    refine hfinal (1 / 8 + (-x) / 4) (by rw [hthr]; linarith) ?_
+    have hval1 : rcross (V1 - O) (V2 - O) = 1 / 4 := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hV20, hV21]; ring
+    have hval2 : rcross (V2 - O) (P - O) = -(x / 2) := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV20, hV21, hP0, hP1]; ring
+    have hsep1 : ∀ z ∈ ({O, V2, P} : Set ℝ²), 0 ≤ rcross (V2 - O) (z - O) := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl | rfl <;>
+        · simp only [rcross, PiLp.sub_apply, hO0, hO1, hV20, hV21, hP0, hP1]
+          norm_num
+          try linarith
+    have hsep2 : ∀ z ∈ ({O, V1, V2} : Set ℝ²), rcross (V2 - O) (z - O) ≤ 0 := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl | rfl <;>
+        · simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hV20, hV21]; norm_num
+    have hdne : V2 - O ≠ 0 := by
+      intro hzero
+      have h0 : (V2 - O) 1 = 0 := by rw [hzero]; simp
+      rw [PiLp.sub_apply, hV21, hO1] at h0
+      norm_num at h0
+    have hbound := volume_two_triangles_le hconv hdne hsep1 hsep2 hO hV2 hP hO hV1 hV2
+    rw [hval1, hval2, abs_of_nonneg (by norm_num : (0:ℝ) ≤ (1:ℝ)/4),
+      abs_of_nonneg (by linarith : (0:ℝ) ≤ -(x / 2))] at hbound
+    refine le_trans (le_of_eq ?_) hbound
+    rw [← ENNReal.ofReal_add (by linarith) (by norm_num)]
+    congr 1
+    ring
+  · -- `x + y < -narrowOffset`: the triangle `V₁, V₂, P` alone
+    have hxy : x + y < -(428960 / 1000000) := by
+      rw [hxdef, hydef, ← hnar]; exact_mod_cast hE
+    refine hfinal (1 / 8 - (x + y) / 4) (by rw [hthr]; linarith) ?_
+    have hval : rcross (V2 - V1) (P - V1) = 1 / 4 - (x + y) / 2 := by
+      simp only [rcross, PiLp.sub_apply, hV10, hV11, hV20, hV21, hP0, hP1]; ring
+    have hbound := volume_triangle_le hconv hV1 hV2 hP
+    rw [hval, abs_of_nonneg (by linarith : (0:ℝ) ≤ 1 / 4 - (x + y) / 2)] at hbound
+    refine le_trans (le_of_eq ?_) hbound
+    congr 1
+    ring
+  · -- `y < -narrowOffset`: `InitialWorm` plus the triangle below the `x`-axis
+    have hy : y < -(428960 / 1000000) := by rw [hydef, ← hnar]; exact_mod_cast hF
+    refine hfinal (1 / 8 + (-y) / 4) (by rw [hthr]; linarith) ?_
+    have hval1 : rcross (V1 - O) (V2 - O) = 1 / 4 := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hV20, hV21]; ring
+    have hval2 : rcross (V1 - O) (P - O) = y / 2 := by
+      simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hP0, hP1]; ring
+    have hsep1 : ∀ z ∈ ({O, V1, V2} : Set ℝ²), 0 ≤ rcross (V1 - O) (z - O) := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl | rfl <;>
+        · simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hV20, hV21]; norm_num
+    have hsep2 : ∀ z ∈ ({O, V1, P} : Set ℝ²), rcross (V1 - O) (z - O) ≤ 0 := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl | rfl <;>
+        · simp only [rcross, PiLp.sub_apply, hO0, hO1, hV10, hV11, hP0, hP1]
+          norm_num
+          try linarith
+    have hdne : V1 - O ≠ 0 := by
+      intro hzero
+      have h0 : (V1 - O) 0 = 0 := by rw [hzero]; simp
+      rw [PiLp.sub_apply, hV10, hO0] at h0
+      norm_num at h0
+    have hbound := volume_two_triangles_le hconv hdne hsep1 hsep2 hO hV1 hV2 hO hV1 hP
+    rw [hval1, hval2, abs_of_nonneg (by norm_num : (0:ℝ) ≤ (1:ℝ)/4),
+      abs_of_nonpos (by linarith : y / 2 ≤ 0)] at hbound
+    refine le_trans (le_of_eq ?_) hbound
+    rw [← ENNReal.ofReal_add (by norm_num) (by linarith)]
+    congr 1
+    ring
+
+/-- **The area threshold is exceeded, in the computational layer.** If `p` lies
+outside `LocationRange` and the *verified* hull of `p` together with the vertices
+of `InitialWorm` is `hull`, then `hull.area` exceeds `areaThreshold`.
+
+The verified hull `ofListChecked` is essential: `convexHullPoints` alone is not
+proved to compute the convex hull (see `convexHullPoints_convex`), so the
+shoelace area of its output carries no information without the run-time check. -/
+theorem areaThreshold_lt_area_of_ofListChecked {p : Point ℚ}
+    (hp : LocationRange.contains p = false) {hull : ConvexPolygon ℚ}
+    (h : ConvexPolygon.ofListChecked (p :: InitialWorm.vertex_list) = some hull) :
+    areaThreshold < hull.area := by
+  have hreal := ConvexPolygon.realHull_ofListChecked h
+  have hvol := ConvexPolygon.volume_realHull hull
+  have hlt := lt_volume_convexHull_insert_initialWorm hp
+  rw [← hreal, hvol] at hlt
+  have h2 : ((areaThreshold : ℚ) : ℝ) < ((hull.area : ℚ) : ℝ) :=
+    (ENNReal.ofReal_lt_ofReal_iff_of_nonneg (by norm_num [areaThreshold])).mp hlt
+  exact_mod_cast h2
+
+end OutsideLocationRange
+
 /-! ## Pinned small covers and the working-set invariants -/
 
 /-- A **pinned small cover**: a convex set that covers every worm up to
@@ -1425,19 +1734,24 @@ theorem Sound.supersetRemoval {s : WorkingSet} (hs : s.Sound) : s.supersetRemova
 
 /-- **`wormAdding` preserves soundness — the mathematical crux of the development.**
 
+This is stated as a *hypothesis* rather than proved, and every result that needs
+it carries it explicitly, so that the gap is visible in the statements rather
+than hidden.
+
 Intended argument: a pinned small cover `K` contains the real region of some
 `p ∈ s.polygons` (by `hs`). Since `hw : w.IsWormHull`, `K` also covers a worm whose
 hull is `w.realHull`, so by convexity `K` contains `g '' w.realHull` for some real
 direct isometry `g`. Because `K` is pinned and small, `g` is confined to a compact
 range of placements (the `LocationRange`/`distanceCutoff` reasoning of
-`Moser.Constants`). The discretization `discretizeIsometries epsilon` must then
-contain a rational isometry close enough to `g` that the `shrink epsilon`-shrunken
-copy of `w`, placed by it, lies inside `g '' w.realHull ⊆ K`. Then
-`hull(p ∪ placed shrunken w) ⊆ K`, and that hull is an element of
-`wormReplacement p w epsilon`.
+`Moser.Constants`, whose defining property is now proved as
+`Moser.lt_volume_convexHull_insert_initialWorm`). The discretization
+`discretizeIsometries epsilon` must then contain a rational isometry close enough
+to `g` that the `shrink epsilon`-shrunken copy of `w`, placed by it, lies inside
+`g '' w.realHull ⊆ K`. Then `hull(p ∪ placed shrunken w) ⊆ K`, and that hull is an
+element of `wormReplacement p w epsilon`.
 
-**Warning — unverified quantitative claims.** This statement's truth depends on
-properties of the current implementations that have NOT been checked:
+**Warning — unverified quantitative claims.** The truth of this statement depends
+on properties of the current implementations that have NOT been checked:
 1. `discretizeIsometries epsilon` must cover the full confined range of rotations
    *and translations* at resolution matched to the `shrink` margin (cf. the TODO in
    `wormReplacement`).
@@ -1446,23 +1760,23 @@ properties of the current implementations that have NOT been checked:
    margin and the argument fails — `w` may need a full-dimensional hull hypothesis.
 3. `wormReplacement` silently drops candidates where `ConvexPolygon.ofList` returns
    `none`; soundness requires the needed candidate to survive.
-Do not invest in proving this lemma before validating the search computationally;
-expect the statement to need additional hypotheses (or the implementation to need
-fixes) discovered during that validation. -/
-theorem Sound.wormAdding {s : WorkingSet} (hs : s.Sound) {w : ConvexPolygon ℚ}
-    (hw : w.IsWormHull) {epsilon : ℚ} (heps : 0 < epsilon) :
-    (s.wormAdding w epsilon heps).Sound := by
-  sorry
+Do not invest in proving this before validating the search computationally; expect
+the statement to need additional hypotheses (or the implementation to need fixes)
+discovered during that validation. -/
+def WormAddingSound : Prop :=
+  ∀ {s : WorkingSet}, s.Sound → ∀ {w : ConvexPolygon ℚ}, w.IsWormHull →
+    ∀ {epsilon : ℚ} (heps : 0 < epsilon), (s.wormAdding w epsilon heps).Sound
 
 /-- The composite cleanup pass preserves soundness. -/
 theorem Sound.cleanup {s : WorkingSet} (hs : s.Sound) : s.cleanup.Sound :=
   hs.bigSetRemoval.supersetRemoval
 
-/-- The main loop step `addWormAndCleanup` preserves soundness. -/
-theorem Sound.addWormAndCleanup {s : WorkingSet} (hs : s.Sound) {w : ConvexPolygon ℚ}
-    (hw : w.IsWormHull) {epsilon : ℚ} (heps : 0 < epsilon) :
+/-- The main loop step `addWormAndCleanup` preserves soundness, given the crux
+hypothesis `WormAddingSound`. -/
+theorem Sound.addWormAndCleanup (hwa : WormAddingSound) {s : WorkingSet} (hs : s.Sound)
+    {w : ConvexPolygon ℚ} (hw : w.IsWormHull) {epsilon : ℚ} (heps : 0 < epsilon) :
     (s.addWormAndCleanup w epsilon heps).Sound :=
-  (hs.wormAdding hw heps).cleanup
+  (hwa hs hw heps).cleanup
 
 end WorkingSet
 
@@ -1559,18 +1873,26 @@ theorem areaThreshold_le_moserCoverNumber_of_run
   obtain ⟨K', hK'⟩ := exists_pinnedSmallCover hconv hcov hlt.le
   exact no_pinnedSmallCover_of_sound_of_empty hs he K' hK'
 
-/-- **Target theorem: a new record lower bound for Moser's worm problem.**
-The minimal area of a convex set covering every unit worm up to
-orientation-preserving isometry is at least `areaThreshold = 0.232240`, beating
-the best published lower bound `0.232239`.
+/-!
+## The target
 
-Awaits a certificate run: exhibit a sound working set with no polygons (iterate
-`WorkingSet.addWormAndCleanup` from `WorkingSet.initial`, using
-`WorkingSet.initial_sound` and the preservation lemmas) and apply
-`areaThreshold_le_moserCoverNumber_of_run`. -/
-theorem areaThreshold_le_moserCoverNumber :
-    ENNReal.ofReal (areaThreshold : ℝ) ≤ moserCoverNumber := by
-  sorry
+**A new record lower bound for Moser's worm problem** — that the minimal area of
+a convex set covering every unit worm up to orientation-preserving isometry is at
+least `areaThreshold = 0.232240`, beating the published lower bound `0.232239` —
+is *not* asserted here, because it is not proved: it would be a new mathematical
+result. What is proved is the reduction
+`areaThreshold_le_moserCoverNumber_of_run`, which turns it into a finite,
+checkable certificate:
+
+> exhibit a sound working set with no polygons, i.e. `∃ s, s.Sound ∧ s.polygons = []`,
+> by iterating `WorkingSet.addWormAndCleanup` from `WorkingSet.initial` using
+> `WorkingSet.initial_sound` and the preservation lemmas.
+
+Producing that certificate needs two things that are open: the crux hypothesis
+`WorkingSet.WormAddingSound` (see its docstring — it should be validated
+computationally before anyone tries to prove it), and an actual terminating run
+of the search.
+-/
 
 end Moser
 

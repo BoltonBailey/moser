@@ -78,11 +78,17 @@ def scaleToUnit (w : Worm) (epsilon : ℚ) : Worm :=
   else w.scale (1 / len)
 
 
-/-- Convert worm vertices to a convex polygon -/
-def toConvexPolygon (w : Worm) : ConvexPolygon ℚ := sorry
+/-- The convex hull of the worm's vertices, as a convex polygon.
 
-/-- Get the convex hull as a ConvexPolygon -/
-def convexHullPolygon (w : Worm) : ConvexPolygon ℚ :=
+Returns `none` exactly when the hull is degenerate (fewer than three extreme
+points), i.e. when all the vertices are collinear; `ConvexPolygon` requires at
+least three vertices in strictly convex position, so there is nothing to
+return in that case. -/
+def toConvexPolygon (w : Worm) : Option (ConvexPolygon ℚ) :=
+  ConvexPolygon.ofList w.vertices
+
+/-- Get the convex hull as a `ConvexPolygon`, when it is nondegenerate. -/
+def convexHullPolygon (w : Worm) : Option (ConvexPolygon ℚ) :=
   w.toConvexPolygon
 
 end Worm
@@ -99,14 +105,30 @@ namespace UnitWorm
 /-- Get the vertices of a unit worm -/
 def vertices (w : UnitWorm) : List (Point ℚ) := w.worm.vertices
 
-/-- Convert to a convex polygon -/
-def toConvexPolygon (w : UnitWorm) : ConvexPolygon ℚ := w.worm.toConvexPolygon
+/-- Convert to a convex polygon, when the hull is nondegenerate. -/
+def toConvexPolygon (w : UnitWorm) : Option (ConvexPolygon ℚ) := w.worm.toConvexPolygon
 
 end UnitWorm
 
-/-- Convert a worm to a unit worm by scaling to unit length.
-    The epsilon parameter controls the precision of the length computation. -/
-def Worm.toUnitWorm (w : Worm) (epsilon : ℚ) : UnitWorm := sorry
+/-!
+## Remark: rescaling to unit length
+
+There is deliberately no `Worm.toUnitWorm : Worm → ℚ → UnitWorm`. Rescaling a
+worm by `1 / lengthApprox ε` (`Worm.scaleToUnit`) produces a worm whose *exact*
+length is close to `1`, but `UnitWorm.unitLength` demands
+`|lengthApprox ε - 1| < ε` for **every** `ε > 0`, and that cannot be
+established here:
+
+* a piecewise-linear path with rational vertices has length
+  `∑ √(Δx² + Δy²)`, which is irrational except in degenerate cases, so no
+  rational rescaling makes the exact length equal to `1`;
+* `lengthApprox` is a Newton iteration run with fixed `fuel` and the stopping
+  test `|x'² - s| < ε²`, which does not by itself certify `|x' - √s| < ε`.
+
+Upgrading `Point` to algebraic numbers (so that lengths are computed exactly)
+is the intended fix; until then `UnitWorm` should be built by supplying the
+`unitLength` proof by hand.
+-/
 
 end Moser
 

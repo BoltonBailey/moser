@@ -13,7 +13,15 @@ public import Moser.Geometry.RationalUtility
 public import Moser.LowerBound
 public import Moser.Manipulation.Invariants
 public import Moser.Manipulation.Operations
+public import Moser.Real.Approximation
+public import Moser.Real.ClippedArea
+public import Moser.Real.Certificate
+public import Moser.Real.CertificateTen
+public import Moser.Real.CertificateWidget
 public import Moser.Real.CompactnessOutline
+public import Moser.Real.PolygonalApprox
+public import Moser.Real.Pruning
+public import Moser.Real.ExplicitBounds
 public import Moser.Real.GridEpsilonNet
 public import Moser.Worm.Basic
 public import Moser.Worm.Enumeration

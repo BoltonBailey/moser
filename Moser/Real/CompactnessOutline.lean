@@ -13,7 +13,7 @@ curves `[0,1] → ℝ²`, their `ε`-thickenings, the finite grid `ε`-net
 (`thm:finiteEpsilonNet`), the Moser cover number, and the lower/upper bounds
 together with the planar Steiner formula bounding the gap between them.
 
-The reusable grid machinery (grid points, `GridNetWorms`, the rounding map and
+The reusable grid machinery (grid points, `GridPolygonalWorms`, the rounding map and
 the piecewise-linear interpolant) lives in `Moser.Real.GridEpsilonNet`, which
 this file imports.
 
@@ -64,12 +64,11 @@ def IsWormEpsilonNet (ε : ℝ) (S : Set (Set ℝ²)) : Prop :=
 /-! ## A finite `ε`-net of polygonal worms -/
 
 /-- With `k` and `δ` chosen so that `1/k < ε/2` and `2δk + δ < ε/2`, the set of
-grid polygonal worms with nodes within distance `1` of the origin is an
-`ε`-net of worms. -/
-private lemma gridNetWorms_isEpsilonNet (ε : ℝ) (_hε : 0 < ε)
+`(k, δ)`-grid polygonal worms is an `ε`-net of worms. -/
+private lemma gridPolygonalWorms_isEpsilonNet (ε : ℝ) (_hε : 0 < ε)
     (k : ℕ) (hk0 : 0 < k) (δ : ℝ) (hδ : 0 < δ) (h2δk : 2 * δ * (k : ℝ) ≤ 1)
     (hk : (1 : ℝ) / k < ε / 2) (hkδ : 2 * δ * (k : ℝ) + δ < ε / 2) :
-    IsWormEpsilonNet ε (GridNetWorms k δ) := by
+    IsWormEpsilonNet ε (GridPolygonalWorms k δ) := by
   have hkR : (0 : ℝ) < (k : ℝ) := by exact_mod_cast hk0
   have hk1 : (1 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk0
   intro s hs
@@ -119,25 +118,9 @@ private lemma gridNetWorms_isEpsilonNet (ε : ℝ) (_hε : 0 < ε)
           refine add_le_add (gridRound_dist_le δ hδ _) (add_le_add hstep ?_)
           rw [dist_comm]; exact gridRound_dist_le δ hδ _
       _ = 1 / (k : ℝ) := by rw [hLdef]; field_simp; ring
-  have hdistnode : ∀ n, n ≤ k → dist (p n) 0 ≤ 1 := by
-    intro n _
-    have hfn : ‖f (tp n)‖ ≤ 1 := by
-      have h1 := hlip.dist_le_mul (tp n) (tp 0)
-      rw [hf_tp0, dist_zero_right] at h1
-      refine le_trans (by simpa using h1) ?_
-      rw [Subtype.dist_eq, Real.dist_eq, htpval 0 (Nat.zero_le k)]
-      simp only [Nat.cast_zero, zero_div, sub_zero]
-      rw [abs_of_nonneg (tp n).2.1]
-      exact (tp n).2.2
-    calc dist (p n) 0 ≤ dist (p n) (L • f (tp n)) + dist (L • f (tp n)) 0 := dist_triangle _ _ _
-      _ ≤ δ + L * 1 := by
-          refine add_le_add (gridRound_dist_le δ hδ _) ?_
-          rw [dist_zero_right, norm_smul, Real.norm_eq_abs, abs_of_nonneg hL0]
-          exact mul_le_mul_of_nonneg_left hfn hL0
-      _ ≤ 1 := by rw [mul_one, hLdef]; nlinarith [hδ, hk1]
   refine ⟨Set.range (interp k p),
     ⟨interp k p, p, interp_lipschitz hk0 p hgap, hat0, hp0,
-      fun n => gridRound_isGrid δ (L • f (tp n)), hdistnode,
+      fun n => gridRound_isGrid δ (L • f (tp n)),
       fun x n t hn ht hx => interp_eq hk0 p x n t hn ht hx, rfl⟩, ?_⟩
   rw [← hfrange]
   rintro y ⟨x, rfl⟩
@@ -225,11 +208,10 @@ private lemma gridNetWorms_isEpsilonNet (ε : ℝ) (_hε : 0 < ε)
 
 /-- **A finite grid `ε`-net exists** (`thm:finiteEpsilonNet`).
 For every `ε > 0` there exist `k : ℕ` and `δ > 0` such that the set `S_ε` of
-`(k, δ)`-grid polygonal worms whose nodes lie within distance `1` of the origin
-is finite and is an `ε`-net of worms. -/
+`(k, δ)`-grid polygonal worms is finite and is an `ε`-net of worms. -/
 theorem finiteWormEpsilonNet (ε : ℝ) (hε : 0 < ε) :
     ∃ (k : ℕ) (δ : ℝ), 0 < δ ∧
-      (GridNetWorms k δ).Finite ∧ IsWormEpsilonNet ε (GridNetWorms k δ) := by
+      (GridPolygonalWorms k δ).Finite ∧ IsWormEpsilonNet ε (GridPolygonalWorms k δ) := by
   obtain ⟨k, hk0, hk⟩ : ∃ k : ℕ, 0 < k ∧ (1 : ℝ) / k < ε / 2 := by
     obtain ⟨k, hk⟩ := exists_nat_gt (2 / ε)
     have h2ε : (0 : ℝ) < 2 / ε := by positivity
@@ -250,8 +232,8 @@ theorem finiteWormEpsilonNet (ε : ℝ) (hε : 0 < ε) :
     have hB : δ ≤ ε / (4 * (2 * (k : ℝ) + 1)) := min_le_right _ _
     rw [le_div_iff₀ (by positivity)] at hB
     nlinarith [hB, hε]
-  exact ⟨k, δ, hδ, gridNetWorms_finite k hk0 δ hδ,
-    gridNetWorms_isEpsilonNet ε hε k hk0 δ hδ h2δk hk hkδ⟩
+  exact ⟨k, δ, hδ, gridPolygonalWorms_finite k hk0 δ hδ,
+    gridPolygonalWorms_isEpsilonNet ε hε k hk0 δ hδ h2δk hk hkδ⟩
 
 /-! ## Bounds on the Moser number -/
 
@@ -369,13 +351,15 @@ theorem moserCoverNumber_lowerBound (S : Set (Set ℝ²)) (_hS : S.Finite)
   -- applied to `S ⊆ Worms`.
   minimalCoverArea_mono hSworms
 
-/-- **Upper bound on the Moser number** (`thm:upperBound`).
-Let `ε > 0` and let `S_ε` be a finite `ε`-net of worms with minimal convex cover
-`K`. Then `M ≤ area (K^ε)`, the area of the `ε`-thickening of `K`. -/
-theorem moserCoverNumber_upperBound (ε : ℝ) (_hε : 0 < ε) (S : Set (Set ℝ²)) (_hS : S.Finite)
-    (hnet : IsWormEpsilonNet ε S) (K : Set ℝ²) (hK : IsMinimalCover S K) :
+/-- **Upper bound on the Moser number, general form.**
+If `S` is an `ε`-net of worms and `K` is any convex placement cover of `S`, then
+`M ≤ area (K^ε)`: every worm can be pinned, approximated by a net element, and
+placed by the cover's own placement into the `ε`-thickening of `K`. -/
+theorem moserCoverNumber_le_volume_cthickening (ε : ℝ) (S : Set (Set ℝ²))
+    (hnet : IsWormEpsilonNet ε S) (K : Set ℝ²) (hKconv : Convex ℝ K)
+    (hK : IsPlacementCover S K) :
     moserCoverNumber ≤ volume (Metric.cthickening ε K) := by
-  obtain ⟨hKconv, ⟨hfun, hfunop, hKeq⟩, _⟩ := hK
+  obtain ⟨hfun, hfunop, hKeq⟩ := hK
   -- Each worm admits an orientation-preserving placement into the `ε`-thickening of
   -- `K`; the convex hull of all these placements is a placement cover of `Worms`
   -- contained in `K^ε`, hence of no larger area.
@@ -421,36 +405,28 @@ theorem moserCoverNumber_upperBound (ε : ℝ) (_hε : 0 < ε) (S : Set (Set ℝ
   rw [moserCoverNumber, minimalCoverArea, minimalVolume]
   exact sInf_le ⟨Metric.cthickening ε K, hPC, rfl⟩
 
-/-- **Minkowski Steiner gap between the bounds** (`thm:minkowskiSteinerGap`).
-Let `K` be a convex body in `ℝ²` with perimeter `L`. Then for every `ε ≥ 0`,
-`area (K^ε) = area K + ε L + π ε²`. -/
-theorem minkowskiSteinerGap (K : Set ℝ²) (hconv : Convex ℝ K) (hcomp : IsCompact K)
-    (hne : K.Nonempty) (ε : ℝ) (hε : 0 ≤ ε) :
-    (volume (Metric.cthickening ε K)).toReal
-      = (volume K).toReal + ε * perimeter K + Real.pi * ε ^ 2 := by
-  -- This is the planar Steiner formula for convex bodies. Mathlib currently has
-  -- no Steiner formula / mixed-volume / intrinsic-volume theory, so a full proof
-  -- would require building that convex-geometry machinery from scratch. Left as a
-  -- standalone TODO; the bounds above (`moserCoverNumber_lowerBound`,
-  -- `moserCoverNumber_upperBound`) do not depend on it.
-  sorry
+/-- **Upper bound on the Moser number** (`thm:upperBound`).
+Let `ε > 0` and let `S_ε` be a finite `ε`-net of worms with minimal convex cover
+`K`. Then `M ≤ area (K^ε)`, the area of the `ε`-thickening of `K`. This is the
+special case of `moserCoverNumber_le_volume_cthickening` where `K` is an
+area-minimising cover. -/
+theorem moserCoverNumber_upperBound (ε : ℝ) (_hε : 0 < ε) (S : Set (Set ℝ²)) (_hS : S.Finite)
+    (hnet : IsWormEpsilonNet ε S) (K : Set ℝ²) (hK : IsMinimalCover S K) :
+    moserCoverNumber ≤ volume (Metric.cthickening ε K) :=
+  moserCoverNumber_le_volume_cthickening ε S hnet K hK.1 hK.2.1
 
-/-- **Approximating the Moser number** (`thm:approxAlgorithm`).
-For any target accuracy `x > 0` there is an `ε`-net `S` and a minimal convex
-cover `K` of it providing a lower bound `area (K S) ≤ M` and an upper bound
-`M ≤ area (K^ε)` whose gap is at most `x`. -/
-theorem approxAlgorithm (x : ℝ) (hx : 0 < x) :
-    ∃ (ε : ℝ) (S : Set (Set ℝ²)) (K : Set ℝ²),
-      0 < ε ∧ S.Finite ∧ IsWormEpsilonNet ε S ∧ IsMinimalCover S K ∧
-      minimalCoverArea S ≤ moserCoverNumber ∧
-      moserCoverNumber ≤ volume (Metric.cthickening ε K) ∧
-      (volume (Metric.cthickening ε K)).toReal - (minimalCoverArea S).toReal ≤ x := by
-  -- Combining the two bounds with the Steiner gap. Blocked on `minkowskiSteinerGap` (to
-  -- control the gap by `ε L + π ε²`) and additionally requires exhibiting an
-  -- area-minimizing convex cover `K` with `IsMinimalCover S K` (attainment of the
-  -- infimum) together with an a priori perimeter bound on `K(Sε)`
-  -- (Remark `rem:perimeterBound` in the blueprint). Left as a TODO.
-  sorry
+/-!
+## Quantitative gap between the bounds
+
+The blueprint controls the gap `area (K^ε) - area (K S)` with the planar
+Minkowski–Steiner formula `area (K^ε) = area K + ε * perimeter K + π ε²`.
+Mathlib has no Steiner formula, mixed volumes or intrinsic volumes, so instead
+the file `Moser.Real.Approximation` proves an elementary *dilation* bound —
+`volume_cthickening_le_of_closedBall_subset`: if a convex set contains a disc of
+radius `r`, its `ε`-thickening has volume at most `(1 + ε/r)²` times its own —
+which is weaker than Steiner but suffices to make the gap arbitrarily small.
+The resulting statement `Moser.CompactnessOutline.approxAlgorithm` lives there.
+-/
 
 end Moser.CompactnessOutline
 

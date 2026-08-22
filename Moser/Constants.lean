@@ -147,20 +147,61 @@ An upper bound on the distance from the origin for points in the LocationRange
 -/
 def distanceCutoff : ℚ := offset * upperBoundSqrtTwo
 
-/--
-If a point `p` lies outside `LocationRange`, then the convex hull of
-`p` together with the vertices of `InitialWorm` has area strictly greater than
-`areaThreshold`.
+/-- The vertex-index pairs of the six directed edges of `LocationRange`. -/
+def lrEdges : List (Fin LocationRange.vertex_count × Fin LocationRange.vertex_count) :=
+  [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0)]
 
-This is the defining property of `LocationRange`: it bounds the set of points
-that any convex polygon containing `InitialWorm` can also include without
-exceeding the area threshold.
+/-- `LocationRange.contains` evaluated: the half-space test of each directed edge. -/
+lemma locationRange_contains_eq (p : Point ℚ) :
+    LocationRange.contains p =
+      lrEdges.all (fun e =>
+        decide (0 ≤ Point.dotProduct (Point.rotate90Counterclockwise
+          (LocationRange.vertices e.2 - LocationRange.vertices e.1))
+          (p - LocationRange.vertices e.1))) := rfl
+
+lemma lrv0 : LocationRange.vertices 0 = ![offset, -narrowOffset] := rfl
+lemma lrv1 : LocationRange.vertices 1 = ![offset, 0] := rfl
+lemma lrv2 : LocationRange.vertices 2 = ![0, offset] := rfl
+lemma lrv3 : LocationRange.vertices 3 = ![-narrowOffset, offset] := rfl
+lemma lrv4 : LocationRange.vertices 4 = ![-narrowOffset, 0] := rfl
+lemma lrv5 : LocationRange.vertices 5 = ![0, -narrowOffset] := rfl
+
+/-- The six half-space tests of `LocationRange` say exactly that `x`, `y` and
+`x + y` all lie between `-narrowOffset` and `offset`. -/
+lemma locationRange_contains_iff (p : Point ℚ) :
+    LocationRange.contains p = true ↔
+      (p 0 ≤ offset ∧ p 0 + p 1 ≤ offset ∧ p 1 ≤ offset ∧
+        -narrowOffset ≤ p 0 ∧ -narrowOffset ≤ p 0 + p 1 ∧ -narrowOffset ≤ p 1) := by
+  rw [locationRange_contains_eq]
+  simp only [lrEdges, List.all_cons, List.all_nil, Bool.and_true, Bool.and_eq_true,
+    decide_eq_true_eq, lrv0, lrv1, lrv2, lrv3, lrv4, lrv5, Point.dotProduct,
+    Point.rotate90Counterclockwise, Pi.sub_apply, Matrix.cons_val_zero, Matrix.cons_val_one]
+  have ho : (0 : ℚ) < offset := by norm_num [offset, areaThreshold]
+  have hn : (0 : ℚ) < narrowOffset := by norm_num [narrowOffset, offset, areaThreshold]
+  constructor
+  · rintro ⟨a1, a2, a3, a4, a5, a6⟩
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> nlinarith [a1, a2, a3, a4, a5, a6, ho, hn]
+  · rintro ⟨a1, a2, a3, a4, a5, a6⟩
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> nlinarith [a1, a2, a3, a4, a5, a6, ho, hn]
+
+/-!
+### The defining property of `LocationRange`
+
+If a point `p` lies outside `LocationRange`, then the convex hull of `p`
+together with the vertices of `InitialWorm` has area strictly greater than
+`areaThreshold`. Stating this about `shoelaceArea (convexHullPoints …)` would be
+stating it about the *output of an unverified algorithm*
+(see `convexHullPoints_convex` in `Moser.Geometry.Polygon`), so the property is
+proved downstream, in `Moser.LowerBound`, in two forms:
+
+* `Moser.lt_volume_convexHull_insert_initialWorm` — the geometric statement,
+  about the Lebesgue measure of the real convex hull;
+* `Moser.areaThreshold_lt_area_of_ofListChecked` — the computational statement,
+  for the run-time-verified hull `ConvexPolygon.ofListChecked`.
+
+The bridge from `LocationRange.contains` to the six inequalities on the
+coordinates is `locationRange_contains_iff` above.
 -/
-theorem area_hull_initialWorm_insert_gt_areaThreshold
-    {p : Point ℚ} (hp : LocationRange.contains p = false) :
-    shoelaceArea (convexHullPoints (p :: InitialWorm.vertex_list)) >
-      areaThreshold := by
-  sorry
 
 end Moser
 

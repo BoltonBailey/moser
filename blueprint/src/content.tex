@@ -722,6 +722,20 @@ The end goal of the working set iteration is the following claim.
   If the final working set is empty, this is a contradiction.
 \end{proof}
 
+\begin{remark}[State of the Lean formalisation]
+  \label{rem:lowerBoundLeanState}
+  \uses{thm:lower-bound, prop:wormAdding-correct}
+  The Lean development does not assert Theorem~\ref{thm:lower-bound}; it proves
+  the reduction \texttt{Moser.areaThreshold\_le\_moserCoverNumber\_of\_run},
+  which derives the bound from a certificate
+  $\exists s,\ s.\mathtt{Sound} \wedge s.\mathtt{polygons} = []$. Two things are
+  outstanding: that certificate (Proposition~\ref{prop:terminating-sequence}),
+  and Proposition~\ref{prop:wormAdding-correct}, which is carried through the
+  Lean statements as an explicit hypothesis
+  \texttt{Moser.WorkingSet.WormAddingSound} rather than assumed silently. Every
+  other statement in the development is proved; the file has no \texttt{sorry}.
+\end{remark}
+
 \begin{proposition}[Terminating sequence of worms]
   \label{prop:terminating-sequence}
   \uses{thm:lower-bound, def:benchmark-worms}
@@ -783,6 +797,18 @@ formula. The development is carried out in
     resulting curve being $1$-Lipschitz.
 \end{definition}
 
+\begin{lemma}[The node bound is automatic]
+    \label{lem:gridNodesInDisc}
+    \lean{Moser.CompactnessOutline.gridPolygonalWorms_eq_bounded_nodes}
+    \uses{def:gridPolygonalWorm, def:pinnedWorm}
+    \leanok
+    Requiring in addition that the nodes $p_0, \dots, p_k$ lie within distance
+    $1$ of the origin does not change the set of $(k,\delta)$-grid polygonal
+    worms. Indeed the interpolant is $1$-Lipschitz and pinned at the origin, so
+    its whole range lies in the closed unit disc, and each node $p_n$ with
+    $n \le k$ is a value of it: $p_n = \tilde f(n/k)$.
+\end{lemma}
+
 \section{A finite \texorpdfstring{$\varepsilon$}{epsilon}-net of polygonal worms}
 
 \begin{definition}[$\varepsilon$-net of worms]
@@ -801,17 +827,18 @@ formula. The development is carried out in
     \uses{def:gridPolygonalWorm, def:epsilonNet}
     \leanok
     For every $\varepsilon > 0$ there exist $k \in \NN$ and $\delta > 0$ such
-    that the set $S_\varepsilon$ of $(k,\delta)$-grid polygonal worms whose
-    nodes lie within distance $1$ of the origin is finite and is an
-    $\varepsilon$-net of worms.
+    that the set $S_\varepsilon$ of all $(k,\delta)$-grid polygonal worms is
+    finite and is an $\varepsilon$-net of worms.
 \end{theorem}
 \begin{proof}
-    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening, def:epsilonNet}
+    \uses{def:pinnedWorm, def:gridPolygonalWorm, def:thickening,
+      def:epsilonNet, lem:gridNodesInDisc}
     Choose $k > 2/\varepsilon$, so that $1/k < \varepsilon/2$, and then choose
     $\delta > 0$ small enough that $2\delta k + \delta < \varepsilon/2$. With
-    these $k$ and $\delta$, the set $S_\varepsilon$ is finite, since each of the
-    finitely many nodes ranges over the finitely many grid points of
-    $\delta\ZZ \times \delta\ZZ$ inside the unit disc.
+    these $k$ and $\delta$, the set $S_\varepsilon$ is finite: by
+    Lemma~\ref{lem:gridNodesInDisc} the nodes lie in the closed unit disc, so each of
+    the finitely many nodes ranges over the finitely many grid points of
+    $\delta\ZZ \times \delta\ZZ$ there, and the nodes determine the worm.
 
     It remains to check that $S_\varepsilon$ is an $\varepsilon$-net. Fix a
     pinned worm $f$ and construct an element of $S_\varepsilon$ near it. Set
@@ -833,8 +860,7 @@ formula. The development is carried out in
     $\tfrac{1}{k}\cdot\tfrac{1}{1+2\delta k} + 2\delta$; multiplying by $k$
     shows the Lipschitz constant of $\tilde f$ is at most
     $\tfrac{1}{1+2\delta k}\,(1 + 2\delta k) = 1$, so $\tilde f$ is a
-    $(k,\delta)$-grid polygonal worm, and its nodes lie within distance $1$ of
-    the origin, hence $\tilde f \in S_\varepsilon$. Comparing $f$ to $\tilde f$
+    $(k,\delta)$-grid polygonal worm, hence $\tilde f \in S_\varepsilon$. Comparing $f$ to $\tilde f$
     at an arbitrary $x \in [0,1]$, the rescaling contributes at most
     $2\delta k$, the grid rounding at most $\delta$, and the linear
     interpolation at most $1/k$, so
@@ -922,66 +948,162 @@ formula. The development is carried out in
     $K^{\varepsilon}$ is a convex cover, and $M \le \area(K^{\varepsilon})$.
 \end{proof}
 
-\begin{theorem}[Steiner gap between the bounds]
-    \label{thm:minkowskiSteinerGap}
-    \lean{Moser.CompactnessOutline.minkowskiSteinerGap}
+\begin{remark}[Steiner gap, and what replaces it]
+    \label{rem:minkowskiSteinerGap}
     \uses{def:minimalCover, def:thickening}
-    Let $K$ be a convex body in $\RR^2$ with perimeter $L$. Then for every
+    The natural way to control the gap between the bounds of
+    Theorems~\ref{thm:lowerBound} and~\ref{thm:upperBound} is the planar Steiner
+    formula: for a convex body $K$ with perimeter $L$ and every
     $\varepsilon \ge 0$,
     \[
         \area\big(K^{\varepsilon}\big)
             = \area(K) + \varepsilon\, L + \pi \varepsilon^{2}.
     \]
-    In particular the upper and lower bounds of
-    Theorems~\ref{thm:lowerBound} and~\ref{thm:upperBound} differ by at most
-    $\varepsilon\, L + \pi \varepsilon^{2}$, where $L$ is the perimeter of
-    $K(S_\varepsilon)$.
+    Mathlib has no Steiner formula (nor mixed volumes or intrinsic volumes), so
+    the formalisation replaces it by the elementary dilation bound
+    Theorem~\ref{thm:dilationBound}, which is weaker but suffices: it also makes
+    the gap tend to $0$ with $\varepsilon$, and it needs no perimeter bound.
+\end{remark}
+
+\begin{theorem}[Dilation bound]
+    \label{thm:dilationBound}
+    \lean{Moser.CompactnessOutline.volume_cthickening_le_of_closedBall_subset}
+    \leanok
+    \uses{def:thickening}
+    Let $K \subseteq \RR^2$ be convex and suppose $K$ contains a disc of radius
+    $r > 0$. Then for every $\varepsilon \ge 0$,
+    \[
+        \area\big(K^{\varepsilon}\big)
+            \le \Big(1 + \tfrac{\varepsilon}{r}\Big)^{2} \area(K).
+    \]
 \end{theorem}
 \begin{proof}
-    \uses{def:thickening}
-    This is the planar Steiner formula for convex bodies: the outer parallel
-    body at distance $\varepsilon$ adds a strip of area $\varepsilon L$ along
-    the boundary together with disc sectors of total area $\pi \varepsilon^2$ at
-    the convex corners.
+    \leanok
+    Passing to the closure changes neither side (the frontier of a convex set is
+    null). A point at distance at most $\varepsilon$ from $K$ is of the form
+    $x + b$ with $x \in K$ and $\lVert b\rVert \le \varepsilon$; writing
+    $u = c + (r/\lVert b\rVert)\, b$ for the point of the disc in the direction
+    of $b$, the point $x + b$ is the image under the homothety of centre $c$ and
+    ratio $1 + \varepsilon/r$ of a convex combination of $x$ and $u$, hence of a
+    point of $K$. The homothety multiplies area by $(1 + \varepsilon/r)^2$.
 \end{proof}
 
-\begin{remark}[Perimeter bound]
-    \label{rem:perimeterBound}
-    \uses{def:minimalCover, thm:minkowskiSteinerGap}
-    To turn Theorem~\ref{thm:minkowskiSteinerGap} into an effective error bound one needs
-    an a priori bound on the perimeter $L$ of $K(S_\varepsilon)$. Insisting that
-    $S_\varepsilon$ contains a fixed closed worm (a loop, e.g.\ a small circle)
-    forces every cover to be bounded, hence $K(S_\varepsilon)$ is bounded with a
-    controlled perimeter. A quantitative perimeter bound is left as a
-    \textsc{todo}; one may also add a square to $S_\varepsilon$ to make this
-    argument go through.
-\end{remark}
+\begin{theorem}[A priori bound $M \le \pi/4$]
+    \label{thm:apriori}
+    \lean{Moser.CompactnessOutline.moserCoverNumber_le_pi_div_four}
+    \leanok
+    \uses{def:moserNumber}
+    $M \le \pi/4$.
+\end{theorem}
+\begin{proof}
+    \leanok
+    A worm $f$ is $1$-Lipschitz on $[0,1]$, so every point of its image lies
+    within $1/2$ of $f(1/2)$. Translating $f(1/2)$ to the origin places every
+    worm inside the disc of radius $1/2$, which is convex; so that disc is a
+    cover, of area $\pi/4$.
+\end{proof}
+
+\begin{theorem}[Every cover contains a disc of radius $1/20$]
+    \label{thm:coverDisc}
+    \lean{Moser.CompactnessOutline.exists_closedBall_subset_of_isPlacementCover}
+    \leanok
+    \uses{def:minimalCover}
+    Let $S$ be a family of worms containing the ``V worm'' $V$ --- the path from
+    $(0,0)$ to $(1/2,0)$ to $(1/2,1/2)$ --- and let $K$ be a cover of $S$. Then
+    $K$ contains a disc of radius $1/20$.
+\end{theorem}
+\begin{proof}
+    \leanok
+    $K$ contains a placed copy of $V$, hence of the convex hull of $V$, the
+    triangle with vertices $(0,0)$, $(1/2,0)$, $(1/2,1/2)$. That triangle
+    contains the disc of radius $1/20$ centred at $(3/10, 1/10)$: the
+    barycentric coordinates $1 - 2p_0$, $2p_0 - 2p_1$, $2p_1$ of a point $p$ of
+    that disc are all nonnegative. Placements are isometries, so they carry
+    discs to discs.
+\end{proof}
 
 \begin{theorem}[Approximating the Moser number]
     \label{thm:approxAlgorithm}
     \lean{Moser.CompactnessOutline.approxAlgorithm}
-    \uses{def:moserNumber, thm:finiteEpsilonNet, thm:lowerBound, thm:upperBound, thm:minkowskiSteinerGap, rem:perimeterBound}
-    Assume a perimeter bound $L_0$ on $K(S_\varepsilon)$ as in
-    Remark~\ref{rem:perimeterBound}. Then for any target accuracy $x > 0$ the
-    Moser cover number $M$ can be computed to within $x$ by the following
-    procedure:
-    \begin{enumerate}
-        \item choose $\varepsilon = x$ small enough that
-            $\varepsilon L_0 + \pi \varepsilon^2 \le x$;
-        \item compute a finite $\varepsilon$-net $S_\varepsilon$, for instance
-            by repeatedly locating worms not yet covered and adding them;
-        \item compute the minimal convex cover $K(S_\varepsilon)$.
-    \end{enumerate}
-    Then $\area(K(S_\varepsilon))$ is a lower bound and
-    $\area(K(S_\varepsilon)^{\varepsilon})$ an upper bound for $M$, and the two
-    differ by at most $x$.
+    \leanok
+    \uses{def:moserNumber, thm:finiteEpsilonNet, thm:lowerBound, thm:upperBound,
+      thm:dilationBound, thm:apriori, thm:coverDisc}
+    For any target accuracy $x > 0$ there are a finite $\varepsilon$-net
+    $S_\varepsilon$ of worms and a convex cover $K$ of it such that
+    \[
+        \area(K(S_\varepsilon)) \le M \le \area(K^{\varepsilon}),
+        \qquad
+        \area(K^{\varepsilon}) - \area(K(S_\varepsilon)) \le x .
+    \]
 \end{theorem}
 \begin{proof}
-    \uses{thm:lowerBound, thm:upperBound, thm:minkowskiSteinerGap}
-    By Theorem~\ref{thm:lowerBound}, $\area(K(S_\varepsilon)) \le M$, and by
-    Theorem~\ref{thm:upperBound}, $M \le \area(K(S_\varepsilon)^{\varepsilon})$.
-    By Theorem~\ref{thm:minkowskiSteinerGap} the gap between these bounds equals
-    $\varepsilon L + \pi \varepsilon^2 \le \varepsilon L_0 + \pi \varepsilon^2
-    \le x$. Hence either bound approximates $M$ to within $x$.
+    \leanok
+    \uses{thm:lowerBound, thm:upperBound, thm:dilationBound, thm:apriori,
+      thm:coverDisc}
+    Take the grid $\varepsilon$-net of Theorem~\ref{thm:finiteEpsilonNet},
+    enlarged by the V worm, and let $K$ be a convex cover of it whose area
+    exceeds $\area(K(S_\varepsilon))$ by at most $\eta$; such a $K$ exists
+    because the convex hull of the placed copies realises the infimum up to
+    $\eta$ (no Blaschke selection theorem is needed). By
+    Theorem~\ref{thm:coverDisc}, $K$ contains a disc of radius $1/20$, so
+    Theorem~\ref{thm:dilationBound} gives
+    $\area(K^{\varepsilon}) \le (1 + 20\varepsilon)^2 \area(K)$. Since
+    $\area(K) \le \area(K(S_\varepsilon)) + \eta \le \pi/4 + \eta$ by
+    Theorem~\ref{thm:apriori}, the gap is at most
+    $\big((1+20\varepsilon)^2 - 1\big)\pi/4 + (1+20\varepsilon)^2 \eta$, which is
+    at most $x$ for $\varepsilon$ and $\eta$ chosen explicitly in terms of $x$.
+\end{proof}
+
+\begin{corollary}[The bounds converge]
+    \label{cor:convergentBounds}
+    \lean{Moser.CompactnessOutline.tendsto_bounds_gap_zero}
+    \leanok
+    \uses{thm:approxAlgorithm}
+    There are sequences $L_n \le M \le U_n$, each an area of an explicit convex
+    cover of an explicit finite net of polygonal worms, with
+    $U_n - L_n \to 0$.
+\end{corollary}
+\begin{proof}
+    \leanok
+    \uses{thm:approxAlgorithm}
+    Apply Theorem~\ref{thm:approxAlgorithm} with $x = 1/(n+1)$.
+\end{proof}
+
+\begin{theorem}[Polygonal approximation with $m$ segments]
+    \label{thm:polygonalApprox}
+    \lean{Moser.CompactnessOutline.exists_polygonalWorm_approx,
+      Moser.CompactnessOutline.exists_polygonalWorm_convexHull_approx}
+    \leanok
+    \uses{def:worm, def:thickening}
+    For every worm $w$ and every $m \ge 1$ there is a worm $w'$ made of $m$
+    segments with $w \subseteq (w')^{1/2m}$ and $w' \subseteq w^{1/2m}$; the same
+    bounds hold for the convex hulls.
+\end{theorem}
+\begin{proof}
+    \leanok
+    Sample $w$ at the parameters $j/m$ and join consecutive samples. Consecutive
+    samples are at distance at most $1/m$, so the interpolant is $1$-Lipschitz;
+    every parameter is within $1/2m$ of a sample, and every point of a segment
+    is within $1/2m$ of one of its endpoints.
+\end{proof}
+
+\begin{theorem}[Pruning bound]
+    \label{thm:pruning}
+    \lean{Moser.CompactnessOutline.worm_subset_cthickening_of_image_subset,
+      Moser.CompactnessOutline.worm_subset_cthickening_minCoverLength}
+    \leanok
+    \uses{def:worm, def:thickening}
+    Let $f$ be a worm and $0 \le a \le b \le 1$. If $f([a,b]) \subseteq A$ then
+    the image of $f$ lies in the $\big(1 - (b-a)\big)$-thickening of $A$. In
+    particular, if a set $P$ of points of the worm is traced on $[a,b]$ and $L$
+    is the minimal length of a $1$-Lipschitz curve covering $P$, then no point of
+    the worm is further than $1 - L$ from $f([a,b])$.
+\end{theorem}
+\begin{proof}
+    \leanok
+    A parameter outside $[a,b]$ is within $\max(a, 1-b) \le 1 - (b-a)$ of an
+    endpoint of $[a,b]$, and $f$ is $1$-Lipschitz. The restriction of $f$ to
+    $[a,b]$, reparametrised, is a $1$-Lipschitz curve of length $b - a$ covering
+    $P$, so $L \le b - a$.
 \end{proof}
 
